@@ -36,6 +36,9 @@
 #include <micrel.h>
 #include <miiphy.h>
 #include <netdev.h>
+#include <linux/fb.h>
+#include <ipu_pixfmt.h>
+#include <i2c.h>
 DECLARE_GLOBAL_DATA_PTR;
 
 #define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |	       \
@@ -194,6 +197,20 @@ static iomux_v3_cfg_t button_pads[] = {
 	/* Volume Up */
 	MX6Q_PAD_GPIO_18__GPIO_7_13	| MUX_PAD_CTRL(BUTTON_PAD_CTRL),
 };
+
+iomux_v3_cfg_t lcd_gpio[] = {
+	MX6Q_PAD_SD1_CMD__GPIO_1_18 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+static void setup_iomux_i2c3(void)
+{
+#define CLKCTL_CCGR2	0x70
+	imx_iomux_v3_setup_multiple_pads(i2c3_pads, ARRAY_SIZE(i2c3_pads));
+	/* Enable i2c clock */
+	int reg = readl(CCM_BASE_ADDR + CLKCTL_CCGR2);
+	reg |= 0xC00;
+	writel(reg, CCM_BASE_ADDR + CLKCTL_CCGR2);
+}
 
 static void setup_iomux_enet(void)
 {
@@ -372,10 +389,85 @@ int setup_sata(void)
 }
 #endif
 
+static struct fb_videomode lvds_xga = {
+	.name           = "Hannstar-XGA",
+	.refresh        = 60,
+	.xres           = 1024,
+	.yres           = 768,
+	.pixclock       = 15385,
+	.left_margin    = 220,
+	.right_margin   = 40,
+	.upper_margin   = 21,
+	.lower_margin   = 7,
+	.hsync_len      = 60,
+	.vsync_len      = 10,
+	.sync           = FB_SYNC_EXT,
+	.vmode          = FB_VMODE_NONINTERLACED
+};
+
+void lcd_iomux(void)
+{
+	int reg;
+       /* Turn on GPIO backlight */
+	imx_iomux_v3_setup_multiple_pads(lcd_gpio, ARRAY_SIZE(lcd_gpio));
+	gpio_direction_output(18, 1);
+
+#define CLKCTL_CGR3		0x38
+#define CLKCTL_CS2CDR		0x2C
+#define CLKCTL_CSCMR2		0x20
+#define CLKCTL_CHSCCDR		0x34
+#define CLKCTL_CCGR3		0x74
+	/* Turn on IPU clock */
+	reg = readl(CCM_BASE_ADDR + CLKCTL_CCGR3);
+	reg |= 0x300F;
+	writel(reg, CCM_BASE_ADDR + CLKCTL_CCGR3);
+
+	reg = readl(ANATOP_BASE_ADDR + 0xF0);
+	reg &= ~0x00003F00;
+	reg |= 0x00001300;
+	writel(reg, ANATOP_BASE_ADDR + 0xF4);
+
+	reg = readl(CCM_BASE_ADDR + CLKCTL_CS2CDR);
+	reg &= ~0x00007E00;
+	reg |= 0x00003600;
+	writel(reg, CCM_BASE_ADDR + CLKCTL_CS2CDR);
+
+	reg = readl(CCM_BASE_ADDR + CLKCTL_CSCMR2);
+	reg |= 0x00000C00;
+	writel(reg, CCM_BASE_ADDR + CLKCTL_CSCMR2);
+
+	reg = 0x0002A953;
+	writel(reg, CCM_BASE_ADDR + CLKCTL_CHSCCDR);
+
+	writel(0x201, IOMUXC_BASE_ADDR + 0x8);
+}
+
+void lcd_enable(void)
+{
+
+	int ret = ipuv3_fb_init(&lvds_xga, 0, IPU_PIX_FMT_RGB666);
+	if (ret)
+		printf("LCD cannot be configured: %d\n", ret);
+}
+
+void setup_lvds_poweron(void)
+{
+	uchar value;
+
+	i2c_read(0x1f, 3, 1, &value, 1);
+	value &= ~0x2;
+	i2c_write(0x1f, 3, 1, &value, 1);
+	i2c_read(0x1f, 1, 1, &value, 1);
+	value |= 0x2;
+	i2c_write(0x1f, 1, 1, &value, 1);
+}
+
 int board_early_init_f(void)
 {
 	setup_iomux_uart();
 	setup_buttons();
+	lcd_iomux();
+	setup_iomux_i2c3();
 
 	return 0;
 }
@@ -396,7 +488,17 @@ int board_init(void)
 	setup_sata();
 #endif
 
+#ifdef CONFIG_VIDEO
+	lcd_enable();
+#endif
        return 0;
+}
+
+int board_late_init(void)
+{
+	setup_lvds_poweron();
+	setenv("stdout", "serial");
+	return 0;
 }
 
 int checkboard(void)
