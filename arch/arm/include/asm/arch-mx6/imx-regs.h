@@ -469,5 +469,38 @@ struct src_regs {
 	u32	gpr10;		/* 0x44 */
 };
 
+/* OCOTP definitions */
+struct otp_regs {
+	u32	ctrl;		/* 0x00 */
+	u32	ctrl_set;	/* 0x04 */
+	u32	ctrl_clr;	/* 0x08 */
+	u32	ctrl_tog;	/* 0x0c */
+	u32	timing;		/* 0x10 */
+	u32	reserved0[3];	/* 0x10 - 0x1c */
+	u32	data;		/* 0x20 */
+	u32	reserved1[3];	/* 0x20 - 0x2c */
+	u32	read_ctrl;	/* 0x30 */
+	u32	reserved2[3];	/* 0x30 - 0x3c */
+	u32	read_fuse_data;	/* 0x40 */
+};
+
+#define BP_OCOTP_CTRL_WR_UNLOCK		16
+#define BM_OCOTP_CTRL_WR_UNLOCK		0xFFFF0000
+#define BV_OCOTP_CTRL_WR_UNLOCK__KEY	0x3E77
+#define BM_OCOTP_CTRL_RELOAD_SHADOWS	0x00000400
+#define BM_OCOTP_CTRL_ERROR		0x00000200
+#define BM_OCOTP_CTRL_BUSY		0x00000100
+#define BP_OCOTP_CTRL_ADDR		0
+#define BM_OCOTP_CTRL_ADDR		0x0000007F
+
+#define BP_OCOTP_TIMING_STROBE_READ	16
+#define BM_OCOTP_TIMING_STROBE_READ	0x003F0000
+#define BP_OCOTP_TIMING_RELAX		12
+#define BM_OCOTP_TIMING_RELAX		0x0000F000
+#define BP_OCOTP_TIMING_STROBE_PROG     0
+#define BM_OCOTP_TIMING_STROBE_PROG	0x00000FFF
+
+#define BM_OCOTP_READ_CTRL_READ_FUSE	0x00000001
+
 #endif /* __ASSEMBLER__*/
 #endif /* __ASM_ARCH_MX6_IMX_REGS_H__ */
