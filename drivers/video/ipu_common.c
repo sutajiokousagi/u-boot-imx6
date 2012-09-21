@@ -218,7 +218,7 @@ static struct clk ipu_clk = {
 #else
 	.enable_reg = (u32 *)(CCM_BASE_ADDR +
 		offsetof(struct mxc_ccm_reg, CCGR3)),
-	.enable_shift = MXC_CCM_CCGR3_IPU1_IPU_DI0_OFFSET,
+	.enable_shift = MXC_CCM_CCGR3_IPU1_IPU_MASK,
 #endif
 	.enable = clk_ipu_enable,
 	.disable = clk_ipu_disable,
