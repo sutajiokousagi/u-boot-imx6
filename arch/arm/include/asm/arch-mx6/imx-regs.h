@@ -200,6 +200,12 @@ struct src {
 	u32     gpr10;
 };
 
+struct iomuxc {
+	u32 gpr[14];
+	u32 omux[5];
+	/* mux and pad registers */
+};
+
 /* ECSPI registers */
 struct cspi_regs {
 	u32 rxdata;
