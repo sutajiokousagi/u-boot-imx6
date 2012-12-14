@@ -28,7 +28,7 @@
 #define CONFIG_DISPLAY_CPUINFO
 #define CONFIG_DISPLAY_BOARDINFO
 
-#define CONFIG_MACH_TYPE	3769
+#define CONFIG_MACH_TYPE	0xffffffff
 
 #include <asm/arch/imx-regs.h>
 #include <asm/imx-common/gpio.h>
@@ -111,7 +111,19 @@
 #define IMX_FEC_BASE			ENET_BASE_ADDR
 #define CONFIG_FEC_XCV_TYPE		RGMII
 #define CONFIG_ETHPRIME			"FEC"
+#define CONFIG_FEC_MXC_PHYADDR		1
 #define CONFIG_FEC_MXC_PHYMASK		(0xf << 4)	/* scan phy 4,5,6,7 */
+
+#ifndef IPU_CPMEM_REG_BASE
+#define IPU_CPMEM_REG_BASE     0x01000000
+#define IPU_LUT_REG_BASE       0x01020000
+#define IPU_SRM_REG_BASE       0x01040000
+#define IPU_TPM_REG_BASE       0x01060000
+#define IPU_DC_TMPL_REG_BASE   0x01080000
+#define IPU_ISP_TBPR_REG_BASE  0x010C0000
+#endif
+
+
 #define CONFIG_PHYLIB
 #define CONFIG_PHY_MICREL
 #define CONFIG_PHY_MICREL_KSZ9021
@@ -155,7 +167,7 @@
 
 #undef CONFIG_CMD_IMLS
 
-#define CONFIG_BOOTDELAY	       3
+#define CONFIG_BOOTDELAY	       1
 
 #define CONFIG_PREBOOT                 ""
 
@@ -182,8 +194,8 @@
 	"fdt_high=0xffffffff\0"	  \
 	"initrd_high=0xffffffff\0" \
        "mmcdev=0\0" \
-       "mmcpart=2\0" \
-       "mmcroot=/dev/mmcblk0p3 rootwait rw\0" \
+       "mmcpart=1\0" \
+       "mmcroot=/dev/mmcblk0p2 rootwait rw\0" \
        "mmcargs=setenv bootargs console=${console},${baudrate} " \
 	       "root=${mmcroot}\0" \
        "loadbootscript=" \

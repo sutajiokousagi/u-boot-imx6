@@ -136,9 +136,11 @@ iomux_v3_cfg_t usdhc3_pads[] = {
        MX6Q_PAD_SD3_DAT1__USDHC3_DAT1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
        MX6Q_PAD_SD3_DAT2__USDHC3_DAT2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
        MX6Q_PAD_SD3_DAT3__USDHC3_DAT3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       MX6Q_PAD_SD3_DAT5__GPIO_7_0    | MUX_PAD_CTRL(NO_PAD_CTRL), /* CD */
+       //MX6Q_PAD_SD3_DAT5__GPIO_7_0    | MUX_PAD_CTRL(NO_PAD_CTRL), /* CD */
+       //MX6Q_PAD_NANDF_ALE__GPIO_6_8   | MUX_PAD_CTRL(NO_PAD_CTRL), //no WP either
 };
 
+// actually, usdhc4 isn't present at all -- this needs to be usdhc2 for novena
 iomux_v3_cfg_t usdhc4_pads[] = {
        MX6Q_PAD_SD4_CLK__USDHC4_CLK   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
        MX6Q_PAD_SD4_CMD__USDHC4_CMD   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
@@ -146,7 +148,7 @@ iomux_v3_cfg_t usdhc4_pads[] = {
        MX6Q_PAD_SD4_DAT1__USDHC4_DAT1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
        MX6Q_PAD_SD4_DAT2__USDHC4_DAT2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
        MX6Q_PAD_SD4_DAT3__USDHC4_DAT3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       MX6Q_PAD_NANDF_D6__GPIO_2_6    | MUX_PAD_CTRL(NO_PAD_CTRL), /* CD */
+       //       MX6Q_PAD_NANDF_D6__GPIO_2_6    | MUX_PAD_CTRL(NO_PAD_CTRL), /* CD */
 };
 
 iomux_v3_cfg_t enet_pads1[] = {
@@ -253,12 +255,15 @@ int board_mmc_getcd(struct mmc *mmc)
        struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
        int ret;
 
+       printf( "board_mmc_getcd(): esdhc_base 0x%08x\n", cfg->esdhc_base );
        if (cfg->esdhc_base == USDHC3_BASE_ADDR) {
 		gpio_direction_input(IMX_GPIO_NR(7, 0));
-		ret = !gpio_get_value(IMX_GPIO_NR(7, 0));
+		//		ret = !gpio_get_value(IMX_GPIO_NR(7, 0));
+		ret = 1; // there is no CD for a microSD card, and if we booted this baby is there.
        } else {
 		gpio_direction_input(IMX_GPIO_NR(2, 6));
-		ret = !gpio_get_value(IMX_GPIO_NR(2, 6));
+		//		ret = !gpio_get_value(IMX_GPIO_NR(2, 6));
+		ret = 0;  // this card just doesn't exist on novena
        }
 
        return ret;
