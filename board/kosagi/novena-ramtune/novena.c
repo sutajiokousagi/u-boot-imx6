@@ -322,6 +322,7 @@ void setup_spi(void)
 
 int board_phy_config(struct phy_device *phydev)
 {
+#if CONFIG_NET
 	/* min rx data delay */
 	ksz9021_phy_extended_write(phydev,
 			MII_KSZ9021_EXT_RGMII_RX_DATA_SKEW, 0x0);
@@ -335,10 +336,12 @@ int board_phy_config(struct phy_device *phydev)
 		phydev->drv->config(phydev);
 
 	return 0;
+#endif
 }
 
 int board_eth_init(bd_t *bis)
 {
+#if CONFIG_NET
 	int ret;
 
 	setup_iomux_enet();
@@ -348,6 +351,7 @@ int board_eth_init(bd_t *bis)
 		printf("FEC MXC: %s:failed\n", __func__);
 
 	return 0;
+#endif
 }
 
 static void setup_buttons(void)
