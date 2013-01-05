@@ -34,7 +34,32 @@
 #undef CONFIG_USB
 #undef CONFIG_VIDEO
 
+#undef CONFIG_I2C
+
 #undef CONFIG_CMD_BMODE
+
+#define CONFIG_CMD_BDI		/* bdinfo			*/
+#define CONFIG_CMD_CONSOLE	/* coninfo			*/
+#define CONFIG_CMD_ECHO		/* echo arguments		*/
+#define CONFIG_CMD_EDITENV	/* editenv			*/
+#define CONFIG_CMD_ITEST	/* Integer (and string) test	*/
+#define CONFIG_CMD_MEMORY	/* md mm nm mw cp cmp crc base loop mtest */
+#define CONFIG_CMD_MISC		/* Misc functions like sleep etc*/
+//#define CONFIG_CMD_RUN		/* run command in env variable	*/
+
+#undef CONFIG_BOOTM_LINUX
+#undef CONFIG_BOOTM_NETBSD 
+#undef CONFIG_BOOTM_RTEMS 
+
+#undef CONFIG_GZIP 
+#undef CONFIG_ZLIB 
+#undef CONFIG_PARTITIONS 
+
+#define CONFIG_BOOTCOMMAND \
+       "echo Do nothing...; "
+
+#undef CONFIG_SYS_HUSH_PARSER  // doesn't seem to work
+
 #else
 #define CONFIG_CMD_SATA
 #define CONFIG_CMD_SF
@@ -45,9 +70,18 @@
 #define CONFIG_USB
 #define CONFIG_VIDEO
 
+/* Command definition */
+#include <config_cmd_default.h>
+
 /* Miscellaneous commands */
 #define CONFIG_CMD_BMODE
 
+#define CONFIG_CMDLINE_TAG
+#define CONFIG_SETUP_MEMORY_TAGS
+#define CONFIG_INITRD_TAG
+#define CONFIG_REVISION_TAG
+
+#define CONFIG_SYS_HUSH_PARSER
 #endif
 
 #define CONFIG_MX6Q
@@ -61,13 +95,8 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/imx-common/gpio.h>
 
-#define CONFIG_CMDLINE_TAG
-#define CONFIG_SETUP_MEMORY_TAGS
-#define CONFIG_INITRD_TAG
-#define CONFIG_REVISION_TAG
-
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN         (10 * 1024 * 1024)
+#define CONFIG_SYS_MALLOC_LEN         (30 * 1024) // just 30k for mallocs
 
 #define CONFIG_BOARD_EARLY_INIT_F
 #define CONFIG_MISC_INIT_R
@@ -87,7 +116,6 @@
 #endif
 
 /* I2C Configs */
-#define CONFIG_I2C
 #ifdef CONFIG_I2C
 #define CONFIG_CMD_I2C
 #define CONFIG_I2C_MULTI_BUS
@@ -198,9 +226,6 @@
 #define CONFIG_CONS_INDEX	       1
 #define CONFIG_BAUDRATE			       115200
 
-/* Command definition */
-#include <config_cmd_default.h>
-
 #undef CONFIG_CMD_IMLS
 
 #define CONFIG_BOOTDELAY	       1
@@ -210,7 +235,8 @@
 #define CONFIG_LOADADDR			       0x10800000
 
 #ifdef NOVENA_RAMTUNE
-#define CONFIG_SYS_TEXT_BASE           0x009073E0
+//#define CONFIG_SYS_TEXT_BASE           0x00920000 // at top
+#define CONFIG_SYS_TEXT_BASE           0x009073e0   // at bottom
 #else
 #define CONFIG_SYS_TEXT_BASE	       0x17800000
 #endif
@@ -273,8 +299,7 @@
 
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_LONGHELP
-#define CONFIG_SYS_HUSH_PARSER
-#define CONFIG_SYS_PROMPT	       "MX6QSABRELITE U-Boot > "
+#define CONFIG_SYS_PROMPT	       "Novena U-Boot > "
 #define CONFIG_AUTO_COMPLETE
 #define CONFIG_SYS_CBSIZE	       256
 
@@ -295,7 +320,7 @@
 #define CONFIG_NR_DRAM_BANKS	       1
 #ifdef NOVENA_RAMTUNE
 #define PHYS_SDRAM		       0x00907000
-#define PHYS_SDRAM_SIZE			       (196 * 1024) // just 196k available in small boot environment
+#define PHYS_SDRAM_SIZE	       (196 * 1024) // just 196k available in small boot environment
 #else
 #define PHYS_SDRAM		       MMDC0_ARB_BASE_ADDR
 #define PHYS_SDRAM_SIZE			       (2 * 1024 * 1024 * 1024)
@@ -334,7 +359,7 @@
 #define CONFIG_ENV_IS_NOWHERE
 #endif
 
-#ifndef NOVENA_RAMTUME
+#ifndef NOVENA_RAMTUNE
 #define CONFIG_OF_LIBFDT
 #define CONFIG_CMD_BOOTZ
 #endif

@@ -302,6 +302,11 @@ void board_init_f(ulong bootflag)
 		}
 	}
 
+#ifdef NOVENA_RAMTUNE
+	debug("RAM tuning selected, breaking into main loop straight-away...\n");
+	main_loop();
+#endif
+
 #ifdef CONFIG_OF_CONTROL
 	/* For now, put this check after the console is ready */
 	if (fdtdec_prepare_fdt()) {
