@@ -1241,14 +1241,29 @@ int do_tune_wcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
   // disable Adopt power down timer:
   reg32_write((MMDC_P0_BASE_ADDR + MAPSR_OFFSET),
 	      reg32_read((MMDC_P0_BASE_ADDR + MAPSR_OFFSET)) | 0x1);
+
   printf("Start write leveling calibration \n");
-  // disable auto refresh and ZQ calibration
+  // 2. disable auto refresh and ZQ calibration
   // before proceeding with Write Leveling calibration
   temp1 = reg32_read(MMDC_P0_BASE_ADDR + MDREF_OFFSET);
   reg32_write((MMDC_P0_BASE_ADDR + MDREF_OFFSET), 0x0000C000);
   temp2 = reg32_read(MMDC_P0_BASE_ADDR + MPZQHWCTRL_OFFSET);
   reg32_write((MMDC_P0_BASE_ADDR + MPZQHWCTRL_OFFSET), temp2 & ~(0x3));
-  // Configure the external DDR device to enter write leveling mode
+
+  // 3. increase walat and ralat to maximum
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 6); //set RALAT to max
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 7);
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 8);
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 16); //set WALAT to max
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 17);
+
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 6); //set RALAT to max
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 7);
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 8);
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 16); //set WALAT to max
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 17);
+
+  // 4 & 5. Configure the external DDR device to enter write leveling mode
   // through Load Mode Register command
   // Register setting:
   // Bits[31:16] MR1 value (0x0080 write leveling enable)
@@ -1256,16 +1271,19 @@ int do_tune_wcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
   // Bits[6:4] set CMD bits for Load Mode Register programming
   // Bits[2:0] set CMD_BA to 0x1 for DDR MR1 programming
   reg32_write(MMDC_P0_BASE_ADDR + MDSCR_OFFSET,0x00808231);
-  // Activate automatic calibration by setting MPWLGCR[HW_WL_EN]
+
+  // 6. Activate automatic calibration by setting MPWLGCR[HW_WL_EN]
   reg32_write(MMDC_P0_BASE_ADDR + MPWLGCR_OFFSET,0x00000001);
-  // Upon completion of this process the MMDC de-asserts the MPWLGCR[HW_WL_EN]
+
+  // 7. Upon completion of this process the MMDC de-asserts the MPWLGCR[HW_WL_EN]
   dummy = 0;
   while (reg32_read(MMDC_P0_BASE_ADDR + MPWLGCR_OFFSET) & 0x00000001) {
     if( withprint ) 
       printf( "." );
   }
   printf( "\n" );
-  // check for any errors: check both PHYs for x64 configuration, if x32, check only PHY0
+
+  // 8. check for any errors: check both PHYs for x64 configuration, if x32, check only PHY0
   if ((reg32_read(MMDC_P0_BASE_ADDR + MPWLGCR_OFFSET) & 0x00000F00) ||
       (reg32_read(MMDC_P1_BASE_ADDR + MPWLGCR_OFFSET) & 0x00000F00))
     {
@@ -1663,13 +1681,13 @@ int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
   // 8. Set the WR_DL_ABS_OFFSET# bits to their default values
   // Both PHYs for x64 configuration, if x32, do only PHY0
-  reg32_write((MMDC_P0_BASE_ADDR + MPRDDLCTL_OFFSET), initdelay);
+  reg32_write((MMDC_P0_BASE_ADDR + MPWRDLCTL_OFFSET), initdelay);
   if (data_bus_size == 0x2) {
-    reg32_write((MMDC_P1_BASE_ADDR + MPRDDLCTL_OFFSET), initdelay);
+    reg32_write((MMDC_P1_BASE_ADDR + MPWRDLCTL_OFFSET), initdelay);
   }
   printf( "intdel0: %08lx / intdel1: %08lx\n", 
-	  reg32_read(MMDC_P0_BASE_ADDR + MPRDDLCTL_OFFSET),
-	  reg32_read(MMDC_P1_BASE_ADDR + MPRDDLCTL_OFFSET));
+	  reg32_read(MMDC_P0_BASE_ADDR + MPWRDLCTL_OFFSET),
+	  reg32_read(MMDC_P1_BASE_ADDR + MPWRDLCTL_OFFSET));
 #if 0
   reg32_write((MMDC_P0_BASE_ADDR + MPWRDLCTL_OFFSET), 0x40404040);
   if (data_bus_size == 0x2) {
