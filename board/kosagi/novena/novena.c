@@ -70,6 +70,14 @@ DECLARE_GLOBAL_DATA_PTR;
 
 int dram_init(void)
 {
+  do_tune_mww(NULL, 0, 1, NULL);
+  do_tune_mrr(NULL, 0, 1, NULL);
+  //  do_tune_wcal(NULL, 0, 1, NULL);
+  do_tune_delays(NULL, 0, 1, NULL);
+  do_tune_delays(NULL, 0, 1, NULL);
+  do_tune_mww(NULL, 0, 1, NULL);
+  do_tune_mrr(NULL, 0, 1, NULL);
+
 	gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
 
 	return 0;
@@ -758,3 +766,1153 @@ int misc_init_r(void)
 #endif
 	return 0;
 }
+
+
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+#define DISP_LINE_LEN 16
+int do_tune_md ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	ulong	addr, length;
+	int	size;
+	int rc = 0;
+
+	//////// globals broken
+	uint	dp_last_addr = 0, dp_last_size = 0;
+	uint	dp_last_length = 0x40;
+	uint	mm_last_addr = 0, mm_last_size = 0;
+	ulong	base_address = 0;
+	////////
+
+	/* We use the last specified parameters, unless new ones are
+	 * entered.
+	 */
+	addr = dp_last_addr;
+	size = dp_last_size;
+	length = dp_last_length;
+
+	if (argc < 2)
+		return CMD_RET_USAGE;
+
+	if ((flag & CMD_FLAG_REPEAT) == 0) {
+		/* New command specified.  Check for a size specification.
+		 * Defaults to long if no or incorrect specification.
+		 */
+		if ((size = cmd_get_data_size(argv[0], 4)) < 0)
+			return 1;
+
+		/* Address is specified since argc > 1
+		*/
+		addr = simple_strtoul(argv[1], NULL, 16);
+		addr += base_address;
+
+		/* If another parameter, it is the length to display.
+		 * Length is the number of objects, not number of bytes.
+		 */
+		if (argc > 2)
+			length = simple_strtoul(argv[2], NULL, 16);
+	}
+
+	/* Print the lines. */
+	print_buffer(addr, (void*)addr, size, length, DISP_LINE_LEN/size);
+	addr += size*length;
+
+	dp_last_addr = addr;
+	dp_last_length = length;
+	dp_last_size = size;
+	return (rc);
+}
+
+int do_tune_mw ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	ulong	addr, writeval, count;
+	int	size;
+
+	//////// globals broken
+	uint	dp_last_addr = 0, dp_last_size = 0;
+	uint	dp_last_length = 0x40;
+	uint	mm_last_addr = 0, mm_last_size = 0;
+	ulong	base_address = 0;
+	////////
+
+	if ((argc < 3) || (argc > 4))
+		return CMD_RET_USAGE;
+
+	/* Check for size specification.
+	*/
+	if ((size = cmd_get_data_size(argv[0], 4)) < 1)
+		return 1;
+
+	/* Address is specified since argc > 1
+	*/
+	addr = simple_strtoul(argv[1], NULL, 16);
+	addr += base_address;
+
+	/* Get the value to write.
+	*/
+	writeval = simple_strtoul(argv[2], NULL, 16);
+
+	/* Count ? */
+	if (argc == 4) {
+		count = simple_strtoul(argv[3], NULL, 16);
+	} else {
+		count = 1;
+	}
+
+	while (count-- > 0) {
+		if (size == 4)
+			*((ulong  *)addr) = (ulong )writeval;
+		else if (size == 2)
+			*((ushort *)addr) = (ushort)writeval;
+		else
+			*((u_char *)addr) = (u_char)writeval;
+		addr += size;
+	}
+	return 0;
+}
+
+int do_tune_mw2 ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	ulong	addr, writeval, count;
+	int	size;
+
+	//////// globals broken
+	uint	dp_last_addr = 0, dp_last_size = 0;
+	uint	dp_last_length = 0x40;
+	uint	mm_last_addr = 0, mm_last_size = 0;
+	ulong	base_address = 0;
+	////////
+
+	if ((argc < 3))
+		return CMD_RET_USAGE;
+
+	/* Check for size specification.
+	*/
+	if ((size = cmd_get_data_size(argv[0], 4)) < 1)
+		return 1;
+
+	/* Address is specified since argc > 1
+	*/
+	addr = simple_strtoul(argv[1], NULL, 16);
+	addr += base_address;
+
+	/* Get the value to write.
+	*/
+	writeval = simple_strtoul(argv[2], NULL, 16);
+
+	count = 1;
+
+	while (count-- > 0) {
+		if (size == 4)
+			*((ulong  *)addr) = (ulong )writeval;
+		else if (size == 2)
+			*((ushort *)addr) = (ushort)writeval;
+		else
+			*((u_char *)addr) = (u_char)writeval;
+		addr += size;
+	}
+	return 0;
+}
+
+#define BIT(n,x) ( ( (x) >> (n) ) & 1 )
+
+int do_tune_mww ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+  ulong	addr, writeval, count, bank, feedback, sum1;
+	int	size;
+
+	//////// globals broken
+	uint	dp_last_addr = 0, dp_last_size = 0;
+	uint	dp_last_length = 0x40;
+	uint	mm_last_addr = 0, mm_last_size = 0;
+	ulong	base_address = 0x10000000;
+	////////
+
+	if( argc > 1 )
+	  bank = simple_strtoul(argv[1], NULL, 16);
+	else
+	  bank = 0;
+
+	/* Address is specified since argc > 1
+	*/
+	if( bank == 0 )
+	  addr = base_address;
+	else
+	  addr = base_address + 0x90000000;
+	
+	printf( "write starting at %08lx\n", addr );
+
+	/* Get the value to write.
+	*/
+	writeval = 0x0;
+
+	count = 0x20000;
+	size = 2;
+	sum1 = 0;
+
+	while (count-- > 0) {
+	  feedback = (BIT(14,writeval) == BIT(13,writeval));
+	  writeval = (writeval<<1) + feedback;
+	  writeval &= 0x7FFF;
+	  *((ushort  *)addr) = (ushort )writeval;
+	  sum1 += (ushort )writeval;
+	  addr += size;
+	}
+	printf( "checksum: %08lx\n", sum1 );
+	return 0;
+}
+
+int do_tune_mrr ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+  ulong	addr, writeval, count, bank, feedback, sum1, sum2;
+	int	size;
+
+	//////// globals broken
+	uint	dp_last_addr = 0, dp_last_size = 0;
+	uint	dp_last_length = 0x40;
+	uint	mm_last_addr = 0, mm_last_size = 0;
+	ulong	base_address = 0x10000000;
+	////////
+
+	if( argc > 1 )
+	  bank = simple_strtoul(argv[1], NULL, 16);
+	else
+	  bank = 0;
+
+	/* Address is specified since argc > 1
+	*/
+	if( bank == 0 )
+	  addr = base_address;
+	else
+	  addr = base_address + 0x90000000;
+	printf( "read starting at %08lx\n", addr );
+
+	/* Get the value to write.
+	*/
+	writeval = 0x0;
+	size = 2;
+
+	sum1 = 0;
+	sum2 = 0;
+	count = 0x20000;
+	feedback = 0;
+	while (count-- > 0) {
+	  feedback = (BIT(14,writeval) == BIT(13,writeval));
+	  writeval = (writeval<<1) + feedback;
+	  writeval &= 0x7FFF;
+	  sum1 += (ushort )writeval;
+	  sum2 += *((ushort  *)addr);
+	  addr += size;
+	}
+	printf("computed: %08lx, readback: %08lx\n", sum1, sum2);
+	return 0;
+}
+
+
+/*
+ * Perform a memory test. A more complete alternative test can be
+ * configured using CONFIG_SYS_ALT_MEMTEST. The complete test loops until
+ * interrupted by ctrl-c or by a failure of one of the sub-tests.
+ */
+int do_tune_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	vu_long	*addr, *start, *end;
+	ulong	val;
+	ulong	readback;
+	ulong	errs = 0;
+	int iterations = 1;
+	int iteration_limit;
+
+	vu_long *dummy = 0;	/* yes, this is address 0x0, not NULL */
+	int	j;
+
+	//////// globals broken
+	uint	dp_last_addr = 0, dp_last_size = 0;
+	uint	dp_last_length = 0x40;
+	uint	mm_last_addr = 0, mm_last_size = 0;
+	ulong	base_address = 0;
+	////////
+
+	static const ulong bitpattern[] = {
+		0x00000001,	/* single bit */
+		0x00000003,	/* two adjacent bits */
+		0x00000007,	/* three adjacent bits */
+		0x0000000F,	/* four adjacent bits */
+		0x00000005,	/* two non-adjacent bits */
+		0x00000015,	/* three non-adjacent bits */
+		0x00000055,	/* four non-adjacent bits */
+		0xaaaaaaaa,	/* alternating 1/0 */
+	};
+
+	ulong	incr;
+	ulong	pattern;
+
+	if (argc > 1)
+		start = (ulong *)simple_strtoul(argv[1], NULL, 16);
+	else
+		start = (ulong *)CONFIG_SYS_MEMTEST_START;
+
+	if (argc > 2)
+		end = (ulong *)simple_strtoul(argv[2], NULL, 16);
+	else
+		end = (ulong *)(CONFIG_SYS_MEMTEST_END);
+
+	if (argc > 3)
+		pattern = (ulong)simple_strtoul(argv[3], NULL, 16);
+	else
+		pattern = 0;
+
+	if (argc > 4)
+		iteration_limit = (ulong)simple_strtoul(argv[4], NULL, 16);
+	else
+		iteration_limit = 0;
+
+	incr = 1;
+	for (;;) {
+		if (ctrlc()) {
+			putc ('\n');
+			return 1;
+		}
+
+		if (iteration_limit && iterations > iteration_limit) {
+			printf("Tested %d iteration(s) with %lu errors.\n",
+				iterations-1, errs);
+			return errs != 0;
+		}
+		++iterations;
+
+		printf ("\rPattern %08lX  Writing..."
+			"%12s"
+			"\b\b\b\b\b\b\b\b\b\b",
+			pattern, "");
+
+		for (addr=start,val=pattern; addr<end; addr++) {
+		  //			WATCHDOG_RESET();
+			*addr = val;
+			val  += incr;
+		}
+
+		puts ("Reading...");
+
+		for (addr=start,val=pattern; addr<end; addr++) {
+		  //			WATCHDOG_RESET();
+			readback = *addr;
+			if (readback != val) {
+				printf ("\nMem error @ 0x%08X: "
+					"found %08lX, expected %08lX\n",
+					(uint)(uintptr_t)addr, readback, val);
+				errs++;
+				if (ctrlc()) {
+					putc ('\n');
+					return 1;
+				}
+			}
+			val += incr;
+		}
+
+		/*
+		 * Flip the pattern each time to make lots of zeros and
+		 * then, the next time, lots of ones.  We decrement
+		 * the "negative" patterns and increment the "positive"
+		 * patterns to preserve this feature.
+		 */
+		if(pattern & 0x80000000) {
+			pattern = -pattern;	/* complement & increment */
+		}
+		else {
+			pattern = ~pattern;
+		}
+		incr = -incr;
+	}
+	return 0;	/* not reached */
+}
+
+void reg32_write(unsigned int addr, unsigned int data) {
+  //  debug( "wrote %08lx to %08lx\n", data, addr );
+  *((unsigned int *) addr) = (unsigned int) data;
+}
+
+unsigned int reg32_read(unsigned int addr) {
+  unsigned int data;
+  data = *((unsigned int *)addr);
+  //  debug( "read %08lx from %08lx\n", data, addr );
+  return data;
+}
+
+void reg32setbit(unsigned int addr, unsigned int bit) {
+  *((unsigned int *)addr) |= (1 << bit);
+}
+void reg32clrbit(unsigned int addr, unsigned int bit) {
+  *((unsigned int *)addr) &= ~(1 << bit);
+}
+
+//  write_level_calib(0x42);
+#define MDPDC_OFFSET 0x0004
+#define MAPSR_OFFSET 0x0404
+#define MDREF_OFFSET 0x0020
+#define MPZQHWCTRL_OFFSET 0x0800
+#define MDSCR_OFFSET 0x001C
+#define MPWLGCR_OFFSET 0x0808
+#define MPWLDECTRL0_OFFSET 0x080c
+#define MPWLDECTRL1_OFFSET 0x0810
+#define MDCTL_OFFSET 0x0000
+#define MDMISC_OFFSET 0x0018
+#define MPPDCMPR1_OFFSET 0x088C
+#define MPSWDAR_OFFSET 0x0894
+#define MPRDDLCTL_OFFSET 0x0848
+#define MPMUR_OFFSET 0x08B8
+#define MPDGCTRL0_OFFSET 0x083C
+#define MPDGHWST0_OFFSET 0x087C
+#define MPDGHWST1_OFFSET 0x0880
+#define MPDGHWST2_OFFSET 0x0884
+#define MPDGHWST3_OFFSET 0x0888
+#define MPDGCTRL1_OFFSET 0x0840
+#define MPRDDLHWCTL_OFFSET 0x0860
+#define MPWRDLCTL_OFFSET 0x0850
+#define MPWRDLHWCTL_OFFSET 0x0864
+
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS0 0x020E05A8
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS1 0x020E05B0
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS2 0x020E0524
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS3 0x020E051C
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS4 0x020E0518
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS5 0x020E050C
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS6 0x020E05B8
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS7 0x020E05C0
+
+int do_tune_wcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+  int temp1, temp2, temp3, dummy;
+  int errorcount = 0;
+  int ddr_mr1 = 0x04;
+  int wldel0 = 0;
+  int wldel1 = 0;
+  int wldel2 = 0;
+  int wldel3 = 0;
+  int wldel4 = 0;
+  int wldel5 = 0;
+  int wldel6 = 0;
+  int wldel7 = 0;
+  int i;
+  int withprint = 1;
+  int ldectrl[4];
+
+  if (argc > 1)
+    ddr_mr1 = (int) simple_strtoul(argv[1], NULL, 16);
+  else
+    ddr_mr1 = 0x04;
+
+  if (argc > 2) {
+    withprint = (int)simple_strtoul(argv[2], NULL, 16) & 0x3;
+  }
+  if (argc > 3) {
+    wldel0 = (int)simple_strtoul(argv[3], NULL, 16) & 0x3;
+    wldel1 = (int)simple_strtoul(argv[4], NULL, 16) & 0x3;
+    wldel2 = (int)simple_strtoul(argv[5], NULL, 16) & 0x3;
+    wldel3 = (int)simple_strtoul(argv[6], NULL, 16) & 0x3;
+    wldel4 = (int)simple_strtoul(argv[7], NULL, 16) & 0x3;
+    wldel5 = (int)simple_strtoul(argv[8], NULL, 16) & 0x3;
+    wldel6 = (int)simple_strtoul(argv[9], NULL, 16) & 0x3;
+    wldel7 = (int)simple_strtoul(argv[10], NULL, 16) & 0x3;
+
+    reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET,
+		(reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET) & 0xF9FFF9FF) |
+		(wldel0 << 9) | (wldel1 << 25));
+
+    reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET,
+		(reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET) & 0xF9FFF9FF) |
+		(wldel2 << 9) | (wldel3 << 25));
+
+    reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET,
+		(reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET) & 0xF9FFF9FF) |
+		(wldel4 << 9) | (wldel5 << 25));
+
+    reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET,
+		(reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET) & 0xF9FFF9FF) |
+		(wldel6 << 9) | (wldel7 << 25));
+
+    debug("MMDC_MPWLDECTRL0 before write level cal: 0x%08X\n",
+	   reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET));
+    debug("MMDC_MPWLDECTRL1 before write level cal: 0x%08X\n",
+	   reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET));
+    debug("MMDC_MPWLDECTRL0 before write level cal: 0x%08X\n",
+	   reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET));
+    debug("MMDC_MPWLDECTRL1 before write level cal: 0x%08X\n",
+	   reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET));
+  }
+
+  // stash old values in case calibration fails, we need to restore them
+  ldectrl[0] = reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET);
+  ldectrl[1] = reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET);
+  ldectrl[2] = reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET);
+  ldectrl[3] = reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET);
+
+  // disable DDR logic power down timer:
+  reg32_write((MMDC_P0_BASE_ADDR + MDPDC_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MDPDC_OFFSET)) & 0xffff00ff);
+  // disable Adopt power down timer:
+  reg32_write((MMDC_P0_BASE_ADDR + MAPSR_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MAPSR_OFFSET)) | 0x1);
+
+  debug("Start write leveling calibration \n");
+  // 2. disable auto refresh and ZQ calibration
+  // before proceeding with Write Leveling calibration
+  temp1 = reg32_read(MMDC_P0_BASE_ADDR + MDREF_OFFSET);
+  reg32_write((MMDC_P0_BASE_ADDR + MDREF_OFFSET), 0x0000C000);
+  temp2 = reg32_read(MMDC_P0_BASE_ADDR + MPZQHWCTRL_OFFSET);
+  reg32_write((MMDC_P0_BASE_ADDR + MPZQHWCTRL_OFFSET), temp2 & ~(0x3));
+
+  // 3. increase walat and ralat to maximum
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 6); //set RALAT to max
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 7);
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 8);
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 16); //set WALAT to max
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 17);
+
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 6); //set RALAT to max
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 7);
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 8);
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 16); //set WALAT to max
+  reg32setbit((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), 17);
+
+  // 4 & 5. Configure the external DDR device to enter write leveling mode
+  // through Load Mode Register command
+  // Register setting:
+  // Bits[31:16] MR1 value (0x0080 write leveling enable)
+  // Bit[9] set WL_EN to enable MMDC DQS output
+  // Bits[6:4] set CMD bits for Load Mode Register programming
+  // Bits[2:0] set CMD_BA to 0x1 for DDR MR1 programming
+  reg32_write(MMDC_P0_BASE_ADDR + MDSCR_OFFSET,0x00808231);
+
+  // 6. Activate automatic calibration by setting MPWLGCR[HW_WL_EN]
+  reg32_write(MMDC_P0_BASE_ADDR + MPWLGCR_OFFSET,0x00000001);
+
+  // 7. Upon completion of this process the MMDC de-asserts the MPWLGCR[HW_WL_EN]
+  dummy = 0;
+  while (reg32_read(MMDC_P0_BASE_ADDR + MPWLGCR_OFFSET) & 0x00000001) {
+    if( withprint ) 
+      printf( "." );
+  }
+ // printf( "\n" );
+
+  // 8. check for any errors: check both PHYs for x64 configuration, if x32, check only PHY0
+  if ((reg32_read(MMDC_P0_BASE_ADDR + MPWLGCR_OFFSET) & 0x00000F00) ||
+      (reg32_read(MMDC_P1_BASE_ADDR + MPWLGCR_OFFSET) & 0x00000F00))
+    {
+      errorcount++;
+    }
+  debug("Write leveling calibration completed, errcount: %d\n", errorcount);
+
+  // check to see if cal failed
+  if( (reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET)) == 0x001F001F &&
+      (reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET)) == 0x001F001F &&
+      (reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET)) == 0x001F001F &&
+      (reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET)) == 0x001F001F ) {
+    debug( "Cal seems to have soft-failed due to memory not supporting write leveling on all channels. Restoring original write leveling values.\n" );
+    reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, ldectrl[0]);
+    reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, ldectrl[1]);
+    reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, ldectrl[2]);
+    reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, ldectrl[3]);
+    
+  }
+  
+  // User should issue MRS command to exit write leveling mode
+  // through Load Mode Register command
+  // Register setting:
+  // Bits[31:16] MR1 value "ddr_mr1" value from initialization
+  // Bit[9] clear WL_EN to disable MMDC DQS output
+  // Bits[6:4] set CMD bits for Load Mode Register programming
+  // Bits[2:0] set CMD_BA to 0x1 for DDR MR1 programming
+  reg32_write( MMDC_P0_BASE_ADDR + MDSCR_OFFSET,((ddr_mr1 << 16)+0x8031));
+  // re-enable to auto refresh and zq cal
+  reg32_write((MMDC_P0_BASE_ADDR + MDREF_OFFSET), temp1);
+  reg32_write((MMDC_P0_BASE_ADDR + MPZQHWCTRL_OFFSET), temp2);
+  reg32_write((MMDC_P1_BASE_ADDR + MPZQHWCTRL_OFFSET), temp3);
+  debug("MMDC_MPWLDECTRL0 after write level cal: 0x%08X\n",
+	 reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET));
+  debug("MMDC_MPWLDECTRL1 after write level cal: 0x%08X\n",
+	 reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET));
+  debug("MMDC_MPWLDECTRL0 after write level cal: 0x%08X\n",
+	 reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET));
+  debug("MMDC_MPWLDECTRL1 after write level cal: 0x%08X\n",
+	 reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET));
+  // enable DDR logic power down timer:
+  reg32_write((MMDC_P0_BASE_ADDR + MDPDC_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MDPDC_OFFSET)) | 0x00005500);
+  // enable Adopt power down timer:
+  reg32_write((MMDC_P0_BASE_ADDR + MAPSR_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MAPSR_OFFSET)) & 0xfffffff7);
+  reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET),0); //clear CON_REQ
+  return errorcount;
+}
+
+
+int modify_dg_result(int reg_st0, int reg_st1, int reg_ctrl)
+{
+  // DQS gating absolute offset should be modified from reflecting (HW_DG_LOWx + HW_DG_UPx)/2
+  // to reflecting (HW_DG_UPx - 0x80)
+  int dg_tmp_val0,dg_tmp_val1, dg_tmp_val2;
+  int dg_dl_abs_offset0, dg_dl_abs_offset1;
+  int dg_hc_del0, dg_hc_del1;
+  dg_tmp_val0 = ((reg32_read(reg_st0) & 0x07ff0000) >>16) - 0xc0;
+  dg_tmp_val1 = ((reg32_read(reg_st1) & 0x07ff0000) >>16) - 0xc0;
+  dg_dl_abs_offset0 = dg_tmp_val0 & 0x7f;
+  dg_hc_del0 = (dg_tmp_val0 & 0x780) << 1;
+  dg_dl_abs_offset1 = dg_tmp_val1 & 0x7f;
+  dg_hc_del1 = (dg_tmp_val1 & 0x780) << 1;
+  dg_tmp_val2 = dg_dl_abs_offset0 + dg_hc_del0 + ((dg_dl_abs_offset1 +
+						   dg_hc_del1) << 16);
+  reg32_write((reg_ctrl),
+	      reg32_read((reg_ctrl)) & 0xf0000000);
+  reg32_write((reg_ctrl),
+	      reg32_read((reg_ctrl)) & 0xf0000000);
+  reg32_write((reg_ctrl),
+	      reg32_read((reg_ctrl)) | dg_tmp_val2);
+}
+
+int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+  int temp1;
+  int g_error_read_dqs_gating;
+  int g_error_read_cal;
+  int g_error_write_cal;
+  int data_bus_size;
+  int temp_ref;
+  int cs0_enable = 0;
+  int cs1_enable = 0;
+  int cs0_enable_initial = 0;
+  int cs1_enable_initial = 0;
+
+  // int PDDWord = 0x55aaaa55; // original values, these work, but can getslightly better below
+  int PDDWord = 0x00FFFF00; // best so far, place into MPPDCMPR1
+  int errorcount = 0;
+  int withprint = 1;
+  unsigned int initdelay = 0x40404040;
+
+  if (argc > 1)
+    withprint = (int) simple_strtoul(argv[1], NULL, 16);
+
+  if (argc > 2 )
+    initdelay = (int) simple_strtoul(argv[2], NULL, 16);
+
+  // check to see which chip selects are enabled
+  cs0_enable_initial = (reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET) &
+			0x80000000) >> 31;
+  cs1_enable_initial = (reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET) &
+			0x40000000) >> 30;
+  debug( "init cs0: %d cs1: %d\n", cs0_enable_initial, cs1_enable_initial );
+  // disable DDR logic power down timer:
+  reg32_write((MMDC_P0_BASE_ADDR + MDPDC_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MDPDC_OFFSET)) & 0xffff00ff);
+
+  // disable Adopt power down timer:
+  reg32_write((MMDC_P0_BASE_ADDR + MAPSR_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MAPSR_OFFSET)) | 0x1);
+
+  // set the device ODT during read:
+  // reg32_write((MMDC_P0_BASE_ADDR + MPODTCTRL_OFFSET),
+  // reg32_read((MMDC_P0_BASE_ADDR + MPODTCTRL_OFFSET)) |  0x8);
+
+  //set DQS pull ups
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS0,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS0) | 0x7000);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS1,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS1) | 0x7000);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS2,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS2) | 0x7000);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS3,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS3) | 0x7000);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS4,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS4) | 0x7000);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS5,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS5) | 0x7000);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS6,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS6) | 0x7000);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS7,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS7) | 0x7000);
+  temp1 = reg32_read(MMDC_P0_BASE_ADDR + MDMISC_OFFSET);
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 6); //set RALAT to max
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 7);
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 8);
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 16); //set WALAT to max
+  reg32setbit((MMDC_P0_BASE_ADDR + MDMISC_OFFSET), 17);
+
+  // disable auto refresh
+  // before proceeding with calibration
+  temp_ref = reg32_read(MMDC_P0_BASE_ADDR + MDREF_OFFSET);
+  reg32_write((MMDC_P0_BASE_ADDR + MDREF_OFFSET), 0x0000C000);
+  // per the ref manual, issue one refresh cycle MDSCR[CMD]= 0x2, this also sets the CON_REQ bit.
+  if (cs0_enable_initial == 1)
+    reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x00008020);
+  if (cs1_enable_initial == 1)
+    reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x00008028);
+  // poll to make sure the con_ack bit was asserted
+  while (!(reg32_read((MMDC_P0_BASE_ADDR + MDSCR_OFFSET)) & 0x00004000)) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // check MDMISC register CALIB_PER_CS to see which CS calibration is targeted to (under normal
+  // cases, it should be cleared as this is the default value, indicating calibration is directed to CS0).
+  // Disable the other chip select not being target for calibration to avoid any potential issues
+  // This will get re-enabled at end of calibration
+  if ((reg32_read(MMDC_P0_BASE_ADDR + MDMISC_OFFSET) & 0x00100000) == 0) {
+    reg32clrbit((MMDC_P0_BASE_ADDR + MDCTL_OFFSET), 30); // clear SDE_1
+  } else {
+    reg32clrbit((MMDC_P0_BASE_ADDR + MDCTL_OFFSET), 31); // clear SDE_0
+  }
+  // check to see which chip selects are now enabled for the remainder of the calibration
+  cs0_enable = (reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET) & 0x80000000) >> 31;
+  cs1_enable = (reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET) & 0x40000000) >> 30;
+  debug( "cal cs0: %d cs1: %d\n", cs0_enable, cs1_enable );
+  // check to see what is the data bus size:
+  data_bus_size= (reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET) & 0x30000) >> 16;
+  debug( "db size: %d\n", data_bus_size );
+  // Issue the Precharge-All command to the DDR device for both chip selects
+  // Note, CON_REQ bit should also remain set
+  // If only using one chip select, then precharge only the desired chip select
+  if (cs0_enable == 1)
+    reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x04008050); // CS0
+  if (cs1_enable == 1)
+    reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x04008058); // CS1
+
+  // Write the pre-defined value into MPPDCMPR1
+  reg32_write((MMDC_P0_BASE_ADDR + MPPDCMPR1_OFFSET), PDDWord);
+  // Issue a write access to the external DDR device by setting the bit SW_DUMMY_WR (bit 0)
+  // in the MPSWDAR0 and then poll this bit until it clears to indicate completion of the
+  // write access.
+  reg32setbit((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET), 0);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET)) & 0x00000001) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+
+  /* this is for read delay cal. why is it here in DQS gating? */
+  // Set the RD_DL_ABS_OFFSET# bits to their default values (will be calibrated later in
+  // the read delay-line calibration)
+  // Both PHYs for x64 configuration, if x32, do only PHY0
+  reg32_write((MMDC_P0_BASE_ADDR + MPRDDLCTL_OFFSET), 0x40404040);
+  if (data_bus_size == 0x2) {
+    reg32_write((MMDC_P1_BASE_ADDR + MPRDDLCTL_OFFSET), 0x40404040);
+  }
+  //Force a measurment, for previous delay setup to take effect:
+  reg32_write((MMDC_P0_BASE_ADDR + MPMUR_OFFSET), 0x800);
+  if (data_bus_size == 0x2) {
+    reg32_write((MMDC_P1_BASE_ADDR + MPMUR_OFFSET), 0x800);
+  }
+  //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  // Read DQS Gating calibration
+  //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  debug("Starting DQS gating calibration...\n");
+  // Reset the read data FIFOs (two resets); only need to issue reset to PHY0 since in x64
+  // mode, the reset will also go to PHY1
+  // read data FIFOs reset1
+  reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // read data FIFOs reset2
+  reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // Start the automatic read DQS gating calibration process by asserting MPDGCTRL0[HW_DG_EN]
+  // and MPDGCTRL0[DG_CMP_CYC] and then poll MPDGCTRL0[HW_DG_EN]] until this bit clears to
+  // indicate completion.
+  // Also, ensure that MPDGCTRL0[HW_DG_ERR] is clear to indicate no errors were seen during
+  // calibration.
+  // Set bit 30: chooses option to wait 32 cycles instead of 16 before comparing read data
+  reg32setbit((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET), 30);
+  // Set bit 28 to start automatic read DQS gating calibration
+  reg32setbit((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET), 28);
+  // Poll for completion
+  // MPDGCTRL0[HW_DG_EN] should be 0
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x10000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // Check to see if any errors were encountered during calibration
+  // (check MPDGCTRL0[HW_DG_ERR])
+  // check both PHYs for x64 configuration, if x32, check only PHY0
+  if (data_bus_size == 0x2) {
+    if ((reg32_read(MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET) & 0x00001000) ||
+	(reg32_read(MMDC_P1_BASE_ADDR + MPDGCTRL0_OFFSET) & 0x00001000)) {
+      errorcount++; // increment the errorcount variable
+      g_error_read_dqs_gating = 1; // set the g_error_read_dqs_gating
+    }
+  } else {
+    if (reg32_read(MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET) & 0x00001000) {
+      errorcount++; // increment the errorcount variable
+      g_error_read_dqs_gating = 1; // set the g_error_read_dqs_gating
+    }
+  }
+  debug( "errorcount: %d\n", errorcount );
+  // DQS gating absolute offset should be modified from reflecting (HW_DG_LOWx + HW_DG_UPx)/2
+  // to reflecting (HW_DG_UPx - 0x80)
+  modify_dg_result(MMDC_P0_BASE_ADDR + MPDGHWST0_OFFSET,
+		   MMDC_P0_BASE_ADDR + MPDGHWST1_OFFSET,
+		   MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET);
+  modify_dg_result(MMDC_P0_BASE_ADDR + MPDGHWST2_OFFSET,
+		   MMDC_P0_BASE_ADDR + MPDGHWST3_OFFSET,
+		   MMDC_P0_BASE_ADDR + MPDGCTRL1_OFFSET);
+  if (data_bus_size == 0x2) {
+    modify_dg_result((MMDC_P1_BASE_ADDR + MPDGHWST0_OFFSET),
+		     (MMDC_P1_BASE_ADDR + MPDGHWST1_OFFSET),
+		     (MMDC_P1_BASE_ADDR + MPDGCTRL0_OFFSET));
+    modify_dg_result((MMDC_P1_BASE_ADDR + MPDGHWST2_OFFSET),
+		     (MMDC_P1_BASE_ADDR + MPDGHWST3_OFFSET),
+		     (MMDC_P1_BASE_ADDR + MPDGCTRL1_OFFSET));
+  }
+  debug("DQS gating calibration completed, hit enter to proceed.\n");
+  //  getc();
+
+
+
+  //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  // Read delay Calibration
+  //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  debug("Starting read calibration...\n");
+  // Reset the read data FIFOs (two resets); only need to issue reset to PHY0 since in x64
+  // mode, the reset will also go to PHY1
+  // read data FIFOs reset1
+  reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // read data FIFOs reset2
+  reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // 4. Issue the Precharge-All command to the DDR device for both chip selects
+  // If only using one chip select, then precharge only the desired chip select
+  if (cs0_enable == 1)
+    reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x04008050); // CS0
+  while( !(reg32_read(MMDC_P0_BASE_ADDR + MDSCR_OFFSET) & 0x4000) ) {
+    printf( "x" );
+  }
+  if (cs1_enable == 1)
+    reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x04008058); // CS1
+  while( !(reg32_read(MMDC_P0_BASE_ADDR + MDSCR_OFFSET) & 0x4000) ) {
+    printf( "x" );
+  }
+
+  ////////////// 5. 6. 7. set the pre-defined word ///////////////
+  reg32_write((MMDC_P0_BASE_ADDR + MPPDCMPR1_OFFSET), PDDWord);
+  // Issue a write access to the external DDR device by setting the bit SW_DUMMY_WR (bit 0)
+  // in the MPSWDAR0 and then poll this bit until it clears to indicate completion of the
+  // write access.
+  reg32setbit((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET), 0);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET)) & 0x00000001) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+
+  //// 8. set initial delays to center up dq in clock
+  reg32_write((MMDC_P0_BASE_ADDR + MPRDDLCTL_OFFSET), initdelay);
+  if (data_bus_size == 0x2) {
+    reg32_write((MMDC_P1_BASE_ADDR + MPRDDLCTL_OFFSET), initdelay);
+  }
+  debug( "intdel0: %08lx / intdel1: %08lx\n", 
+	  reg32_read(MMDC_P0_BASE_ADDR + MPRDDLCTL_OFFSET),
+	  reg32_read(MMDC_P1_BASE_ADDR + MPRDDLCTL_OFFSET));
+
+  // 9. Read delay-line calibration
+  // Start the automatic read calibration process by asserting MPRDDLHWCTL[HW_RD_DL_EN]
+  reg32_write((MMDC_P0_BASE_ADDR + MPRDDLHWCTL_OFFSET), 0x00000030);
+
+  // 10. poll for completion
+  // MMDC indicates that the write data calibration had finished by setting
+  // MPRDDLHWCTL[HW_RD_DL_EN] = 0
+  // Also, ensure that no error bits were set
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPRDDLHWCTL_OFFSET)) & 0x00000010) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // check both PHYs for x64 configuration, if x32, check only PHY0
+  if (data_bus_size == 0x2) {
+    if ((reg32_read(MMDC_P0_BASE_ADDR + MPRDDLHWCTL_OFFSET) & 0x0000000f) ||
+	(reg32_read(MMDC_P1_BASE_ADDR + MPRDDLHWCTL_OFFSET) & 0x0000000f)) {
+      errorcount++; // increment the errorcount variable
+      g_error_read_cal = 1; // set the g_error_read_cal
+    }
+  } else {
+    if (reg32_read(MMDC_P0_BASE_ADDR + MPRDDLHWCTL_OFFSET) & 0x0000000f) {
+      errorcount++; // increment the errorcount variable
+      g_error_read_cal = 1; // set the g_error_read_cal
+    }
+  }
+  debug( "errorcount: %d\n", errorcount );
+  debug("Read calibration completed, hit enter to continue\n");
+  //  getc();
+
+
+
+  //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  // Write delay Calibration
+  //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  debug("Starting write calibration...\n");
+  // 3. Reset the read data FIFOs (two resets); only need to issue reset to PHY0 since in x64
+  // mode, the reset will also go to PHY1
+  // read data FIFOs reset1
+  reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // read data FIFOs reset2
+  reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+
+  // 4. Issue the Precharge-All command to the DDR device for both chip selects
+  // If only using one chip select, then precharge only the desired chip select
+  if (cs0_enable == 1)
+    reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x04008050); // CS0
+  if (cs1_enable == 1)
+    reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x04008058); // CS1
+
+  ////////////// 5. 6. 7. set the pre-defined word ///////////////
+  reg32_write((MMDC_P0_BASE_ADDR + MPPDCMPR1_OFFSET), PDDWord);
+  // Issue a write access to the external DDR device by setting the bit SW_DUMMY_WR (bit 0)
+  // in the MPSWDAR0 and then poll this bit until it clears to indicate completion of the
+  // write access.
+  reg32setbit((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET), 0);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET)) & 0x00000001) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+
+  // 8. Set the WR_DL_ABS_OFFSET# bits to their default values
+  // Both PHYs for x64 configuration, if x32, do only PHY0
+  reg32_write((MMDC_P0_BASE_ADDR + MPWRDLCTL_OFFSET), initdelay);
+  if (data_bus_size == 0x2) {
+    reg32_write((MMDC_P1_BASE_ADDR + MPWRDLCTL_OFFSET), initdelay);
+  }
+  debug( "intdel0: %08lx / intdel1: %08lx\n", 
+	  reg32_read(MMDC_P0_BASE_ADDR + MPWRDLCTL_OFFSET),
+	  reg32_read(MMDC_P1_BASE_ADDR + MPWRDLCTL_OFFSET));
+#if 0
+  reg32_write((MMDC_P0_BASE_ADDR + MPWRDLCTL_OFFSET), 0x40404040);
+  if (data_bus_size == 0x2) {
+    reg32_write((MMDC_P1_BASE_ADDR + MPWRDLCTL_OFFSET), 0x40404040);
+  }
+#endif
+
+  // ?? this isn't in the manual. Force a measurment, for previous delay setup to effect:
+  reg32_write((MMDC_P0_BASE_ADDR + MPMUR_OFFSET), 0x800);
+  if (data_bus_size == 0x2) {
+    reg32_write((MMDC_P1_BASE_ADDR + MPMUR_OFFSET), 0x800);
+  }
+
+  // 9. 10. Start the automatic write calibration process by asserting MPWRDLHWCTL0[HW_WR_DL_EN]
+  reg32_write((MMDC_P0_BASE_ADDR + MPWRDLHWCTL_OFFSET), 0x00000030);
+  // poll for completion
+  // MMDC indicates that the write data calibration had finished by setting
+  // MPWRDLHWCTL[HW_WR_DL_EN] = 0
+  // Also, ensure that no error bits were set
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPWRDLHWCTL_OFFSET)) & 0x00000010)  {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // check both PHYs for x64 configuration, if x32, check only PHY0
+  if (data_bus_size == 0x2) {
+    if ((reg32_read(MMDC_P0_BASE_ADDR + MPWRDLHWCTL_OFFSET) & 0x0000000f) ||
+	(reg32_read(MMDC_P1_BASE_ADDR + MPWRDLHWCTL_OFFSET) & 0x0000000f)) {
+      errorcount++; // increment the errorcount variable
+      g_error_write_cal = 1; // set the g_error_write_cal
+    }
+  } else {
+    if (reg32_read(MMDC_P0_BASE_ADDR + MPWRDLHWCTL_OFFSET) & 0x0000000f) {
+      errorcount++; // increment the errorcount variable
+      g_error_write_cal = 1; // set the g_error_write_cal
+    }
+  }
+  debug( "errorcount: %d\n", errorcount );
+  debug("Write calibration completed, hit enter to continue\n");
+  //  getc();
+  // Reset the read data FIFOs (two resets); only need to issue reset to PHY0 since in x64
+  // mode, the reset will also go to PHY1
+  // read data FIFOs reset1
+  reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
+  while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+  // read data FIFOs reset2
+  reg32_write((MMDC_P1_BASE_ADDR + MPDGCTRL0_OFFSET),
+	      reg32_read((MMDC_P1_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
+  while (reg32_read((MMDC_P1_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+
+  // enable DDR logic power down timer:
+  reg32_write((MMDC_P0_BASE_ADDR + MDPDC_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MDPDC_OFFSET)) | 0x00005500);
+  // enable Adopt power down timer:
+  reg32_write((MMDC_P0_BASE_ADDR + MAPSR_OFFSET),
+	      reg32_read((MMDC_P0_BASE_ADDR + MAPSR_OFFSET)) & 0xfffffff7);
+  //restore MDMISC value (RALAT, WALAT)
+  reg32_write((MMDC_P1_BASE_ADDR + MDMISC_OFFSET), temp1);
+  // device ODT back to normal:
+  // reg32_write((MMDC_P0_BASE_ADDR + MPODTCTRL_OFFSET),
+  // reg32_read((MMDC_P0_BASE_ADDR + MPODTCTRL_OFFSET)) & 0xfffffff7);
+  //clear DQS pull ups
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS0,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS0) & 0xffff0fff);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS1,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS1) & 0xffff0fff);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS2,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS2) & 0xffff0fff);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS3,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS3) & 0xffff0fff);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS4,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS4) & 0xffff0fff);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS5,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS5) & 0xffff0fff);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS6,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS6) & 0xffff0fff);
+  reg32_write(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS7,
+	      reg32_read(IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS7) & 0xffff0fff);
+  // re-enable SDE (chip selects) if they were set initially
+  if (cs1_enable_initial == 1) {
+    reg32setbit((MMDC_P0_BASE_ADDR + MDCTL_OFFSET), 30); // set SDE_1
+  }
+  if (cs0_enable_initial == 1) {
+    reg32setbit((MMDC_P0_BASE_ADDR + MDCTL_OFFSET), 31); // set SDE_0
+  }
+  // re-enable to auto refresh
+  reg32_write((MMDC_P0_BASE_ADDR + MDREF_OFFSET), temp_ref);
+  // clear the MDSCR (including the con_req bit)
+  reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x0); // CS0
+  // poll to make sure the con_ack bit is clear
+  while ((reg32_read(MMDC_P0_BASE_ADDR + MDSCR_OFFSET) & 0x00004000)) {
+    if( withprint )
+      printf( "." );
+  }
+ // printf( "\n" );
+
+  // print out the registers that were updated as a result of the calibration process
+  debug("MMDC registers updated from calibration \n");
+  debug("\nRead DQS Gating calibration\n");
+  debug("MPDGCTRL0 PHY0 (0x021b083c) = 0x%08X\n", reg32_read(0x021b083c));
+  debug("MPDGCTRL1 PHY0 (0x021b0840) = 0x%08X\n", reg32_read(0x021b0840));
+  debug("MPDGCTRL0 PHY1 (0x021b483c) = 0x%08X\n", reg32_read(0x021b483c));
+  debug("MPDGCTRL1 PHY1 (0x021b4840) = 0x%08X\n", reg32_read(0x021b4840));
+  debug("\nRead calibration\n");
+  debug("MPRDDLCTL PHY0 (0x021b0848) = 0x%08X\n", reg32_read(0x021b0848));
+  debug("MPRDDLCTL PHY1 (0x021b4848) = 0x%08X\n", reg32_read(0x021b4848));
+  debug("\nWrite calibration\n");
+  debug("MPWRDLCTL PHY0 (0x021b0850) = 0x%08X\n", reg32_read(0x021b0850));
+  debug("MPWRDLCTL PHY1 (0x021b4850) = 0x%08X\n", reg32_read(0x021b4850));
+  debug("\n");
+  // registers below are for debugging purposes
+  // these print out the upper and lower boundaries captured during read DQS gating calibration
+  debug("Status registers, upper and lower bounds, for read DQS gating. \n");
+  debug("MPDGHWST0 PHY0 (0x021b087c) = 0x%08X\n", reg32_read(0x021b087c));
+  debug("MPDGHWST1 PHY0 (0x021b0880) = 0x%08X\n", reg32_read(0x021b0880));
+  debug("MPDGHWST2 PHY0 (0x021b0884) = 0x%08X\n", reg32_read(0x021b0884));
+  debug("MPDGHWST3 PHY0 (0x021b0888) = 0x%08X\n", reg32_read(0x021b0888));
+  debug("MPDGHWST0 PHY1 (0x021b487c) = 0x%08X\n", reg32_read(0x021b487c));
+  debug("MPDGHWST1 PHY1 (0x021b4880) = 0x%08X\n", reg32_read(0x021b4880));
+  debug("MPDGHWST2 PHY1 (0x021b4884) = 0x%08X\n", reg32_read(0x021b4884));
+  debug("MPDGHWST3 PHY1 (0x021b4888) = 0x%08X\n", reg32_read(0x021b4888));
+
+  debug("errorcount: %d\n", errorcount );
+
+  return 0;
+}
+
+
+
+
+U_BOOT_CMD(
+	tmd,	3,	1,	do_tune_md,
+	"memory display for tuning",
+	"[.b, .w, .l] address [# of objects]"
+);
+
+U_BOOT_CMD(
+	tmw,	4,	1,	do_tune_mw,
+	"memory write (fill) for tuning",
+	"[.b, .w, .l] address value [count]"
+);
+
+U_BOOT_CMD(
+	tmw2,	15,	1,	do_tune_mw2,
+	"memory write (fill) for tuning, ignores trailing data",
+	"[.b, .w, .l] address value"
+);
+
+U_BOOT_CMD(
+	tmww,	2,	1,	do_tune_mww,
+	"write random data to RAM",
+	"[bank]"
+);
+
+U_BOOT_CMD(
+	tmrr,	2,	1,	do_tune_mrr,
+	"read data and checksum from write",
+	"[bank]"
+);
+
+
+U_BOOT_CMD(
+	tmtest,	5,	1,	do_tune_mtest,
+	"simple RAM read/write test",
+	"[start [end [pattern [iterations]]]]"
+);
+
+U_BOOT_CMD(
+	tmwcal,	11,	1,	do_tune_wcal,
+	"write calibration",
+	"[mr1 setting] [withprint] [wlcyc0] [wlcyc1] [wlcyc2] [wlcyc3] [wlcyc4] [wlcyc5] [wlcyc6] [wlcyc7]"
+);
+
+U_BOOT_CMD(
+	tmdel,	3,	1,	do_tune_delays,
+	"delay calibration",
+	"[withprint] [initdelay]"
+);
+
+
+
+int do_nothing(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	return 0;
+}
+
+cmd_tbl_t __u_boot_cmd_question_hash Struct_Section = {
+	"#",	CONFIG_SYS_MAXARGS,	1,	do_nothing,
+	"comment",
+	""
+};
