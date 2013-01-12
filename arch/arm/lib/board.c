@@ -1,3 +1,4 @@
+#define DEBUG
 /*
  * (C) Copyright 2002-2006
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -453,6 +454,8 @@ void board_init_f(ulong bootflag)
 	gd->start_addr_sp = addr_sp;
 	gd->reloc_off = addr - _TEXT_BASE;
 	debug("relocation Offset is: %08lx\n", gd->reloc_off);
+	debug("_TEXT_BASE: %08lx\n", _TEXT_BASE);
+	debug("addr_sp: %08lx\n", addr_sp);
 	memcpy(id, (void *)gd, sizeof(gd_t));
 
 	relocate_code(addr_sp, id, addr);

@@ -70,9 +70,9 @@ DECLARE_GLOBAL_DATA_PTR;
 
 int dram_init(void)
 {
-       gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
+	gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
 
-       return 0;
+	return 0;
 }
 
 iomux_v3_cfg_t uart1_pads[] = {
@@ -322,6 +322,7 @@ void setup_spi(void)
 
 int board_phy_config(struct phy_device *phydev)
 {
+#ifdef CONFIG_FEC_MXC
 	/* min rx data delay */
 	ksz9021_phy_extended_write(phydev,
 			MII_KSZ9021_EXT_RGMII_RX_DATA_SKEW, 0x0);
@@ -333,7 +334,7 @@ int board_phy_config(struct phy_device *phydev)
 			MII_KSZ9021_EXT_RGMII_CLOCK_SKEW, 0xf0f0);
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
-
+#endif
 	return 0;
 }
 

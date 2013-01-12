@@ -102,6 +102,7 @@
 #define CONFIG_LIBATA
 #endif
 
+#if 0
 #define CONFIG_CMD_PING
 #define CONFIG_CMD_DHCP
 #define CONFIG_CMD_MII
@@ -113,6 +114,7 @@
 #define CONFIG_ETHPRIME			"FEC"
 #define CONFIG_FEC_MXC_PHYADDR		1
 #define CONFIG_FEC_MXC_PHYMASK		(0xf << 4)	/* scan phy 4,5,6,7 */
+#endif
 
 #ifndef IPU_CPMEM_REG_BASE
 #define IPU_CPMEM_REG_BASE     0x01000000
@@ -123,12 +125,14 @@
 #define IPU_ISP_TBPR_REG_BASE  0x010C0000
 #endif
 
-
+#if 0
 #define CONFIG_PHYLIB
 #define CONFIG_PHY_MICREL
 #define CONFIG_PHY_MICREL_KSZ9021
+#endif
 
 /* USB Configs */
+#if 0
 #define CONFIG_CMD_USB
 #define CONFIG_CMD_FAT
 #define CONFIG_USB_EHCI
@@ -140,11 +144,13 @@
 #define CONFIG_MXC_USB_PORT	1
 #define CONFIG_MXC_USB_PORTSC	(PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_MXC_USB_FLAGS	0
+#endif
 
 /* Miscellaneous commands */
 #define CONFIG_CMD_BMODE
 
 /* Framebuffer and LCD */
+#if 0
 #define CONFIG_VIDEO
 #define CONFIG_VIDEO_IPUV3
 #define CONFIG_CFB_CONSOLE
@@ -156,6 +162,7 @@
 #define CONFIG_BMP_16BPP
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_IPUV3_CLK 260000000
+#endif
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
@@ -172,7 +179,7 @@
 #define CONFIG_PREBOOT                 ""
 
 #define CONFIG_LOADADDR			       0x10800000
-#define CONFIG_SYS_TEXT_BASE	       0x17800000
+#define CONFIG_SYS_TEXT_BASE	       0x009073e0
 
 /*
  * The boot ROM code copies U-Boot already into the RAM at
@@ -288,5 +295,25 @@
 #ifndef CONFIG_SYS_DCACHE_OFF
 #define CONFIG_CMD_CACHE
 #endif
+
+
+/* Disable stuff that's enabled by default */
+#undef CONFIG_CMD_BDI          /* bdinfo                       */
+#undef CONFIG_CMD_BOOTD        /* bootd                        */
+#undef CONFIG_CMD_EDITENV      /* editenv                      */
+#undef CONFIG_CMD_FPGA         /* FPGA configuration Support   */
+#undef CONFIG_CMD_IMI          /* iminfo                       */
+#undef CONFIG_CMD_ITEST        /* Integer (and string) test    */
+#undef CONFIG_CMD_LOADB        /* loadb                        */
+#undef CONFIG_CMD_LOADS        /* loads                        */
+#undef CONFIG_CMD_MISC         /* Misc functions like sleep etc*/
+#undef CONFIG_CMD_NET          /* bootp, tftpboot, rarpboot    */
+#undef CONFIG_CMD_NFS          /* NFS support                  */
+#undef CONFIG_CMD_RUN          /* run command in env variable  */
+#undef CONFIG_CMD_SAVEENV      /* saveenv                      */
+#undef CONFIG_CMD_SETGETDCR    /* DCR support on 4xx           */
+#undef CONFIG_CMD_SOURCE       /* "source" command support     */
+#undef CONFIG_CMD_XIMG         /* Load part of Multi Image     */
+
 
 #endif			       /* __CONFIG_H */
