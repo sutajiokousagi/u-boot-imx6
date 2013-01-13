@@ -22,8 +22,6 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-#define DEBUG
-
 #define CONFIG_MX6Q
 #define CONFIG_SYS_MX6_HCLK	       24000000
 #define CONFIG_SYS_MX6_CLK32	       32768
@@ -302,19 +300,13 @@
 /* Disable stuff that's enabled by default */
 #undef CONFIG_CMD_BDI          /* bdinfo                       */
 #undef CONFIG_CMD_BOOTD        /* bootd                        */
-#undef CONFIG_CMD_EDITENV      /* editenv                      */
 #undef CONFIG_CMD_FPGA         /* FPGA configuration Support   */
 #undef CONFIG_CMD_IMI          /* iminfo                       */
-#undef CONFIG_CMD_ITEST        /* Integer (and string) test    */
 #undef CONFIG_CMD_LOADB        /* loadb                        */
 #undef CONFIG_CMD_LOADS        /* loads                        */
-#undef CONFIG_CMD_MISC         /* Misc functions like sleep etc*/
 #undef CONFIG_CMD_NET          /* bootp, tftpboot, rarpboot    */
 #undef CONFIG_CMD_NFS          /* NFS support                  */
-#undef CONFIG_CMD_RUN          /* run command in env variable  */
-#undef CONFIG_CMD_SAVEENV      /* saveenv                      */
 #undef CONFIG_CMD_SETGETDCR    /* DCR support on 4xx           */
-#undef CONFIG_CMD_SOURCE       /* "source" command support     */
 #undef CONFIG_CMD_XIMG         /* Load part of Multi Image     */
 
 
