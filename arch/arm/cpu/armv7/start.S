@@ -133,18 +133,6 @@ reset:
 	orr	r0, r0, #0xd3
 	msr	cpsr,r0
 
-	ldr	r1, =5
-	ldr	r0, =0x020e009c
-	str	r1, [r0]
-
-	ldr	r1, =0x73b80000
-	ldr	r0, =0x020a4000
-	str	r1, [r0]
-
-	ldr	r1, =0x00080000
-	ldr	r0, =0x020a4004
-	str	r1, [r0]
-
 /*
  * Setup vector:
  * (OMAP4 spl TEXT_BASE is not 32 byte aligned.
