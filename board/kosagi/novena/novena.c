@@ -1,3 +1,4 @@
+#define DEBUG
 /*
  * Copyright (C) 2010-2011 Freescale Semiconductor, Inc.
  *
@@ -72,7 +73,8 @@ int dram_init(void)
 {
   do_tune_mww(NULL, 0, 1, NULL);
   do_tune_mrr(NULL, 0, 1, NULL);
-  //  do_tune_wcal(NULL, 0, 1, NULL);
+  do_tune_wcal(NULL, 0, 1, NULL);
+  udelay(100000);
   do_tune_delays(NULL, 0, 1, NULL);
   do_tune_delays(NULL, 0, 1, NULL);
   do_tune_mww(NULL, 0, 1, NULL);
