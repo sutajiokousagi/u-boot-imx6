@@ -239,7 +239,7 @@
 
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_LONGHELP
-#define CONFIG_SYS_HUSH_PARSER
+//#define CONFIG_SYS_HUSH_PARSER
 #define CONFIG_SYS_PROMPT	       "Novena U-Boot > "
 #define CONFIG_AUTO_COMPLETE
 #define CONFIG_SYS_CBSIZE	       256
@@ -260,7 +260,7 @@
 /* Physical Memory Map */
 #define CONFIG_NR_DRAM_BANKS	       1
 #define PHYS_SDRAM		       MMDC0_ARB_BASE_ADDR
-#define PHYS_SDRAM_SIZE			       (2u * 1024 * 1024 * 1024) // largest "safe" autodetect is 2GiB, empirically determined
+#define PHYS_SDRAM_SIZE			       (2 * 1024 * 1024 * 1024) // largest "safe" autodetect is 2GiB, empirically determined
 
 #define CONFIG_SYS_SDRAM_BASE	       PHYS_SDRAM
 #define CONFIG_SYS_INIT_RAM_ADDR       IRAM_BASE_ADDR

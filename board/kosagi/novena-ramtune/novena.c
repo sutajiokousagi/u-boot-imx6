@@ -275,6 +275,7 @@ int board_mmc_init(bd_t *bis)
        u32 index = 0;
 
        for (index = 0; index < CONFIG_SYS_FSL_USDHC_NUM; ++index) {
+	 printf( "at board_mmc_init iter %d\n", index );
 	       switch (index) {
 	       case 0:
 		       imx_iomux_v3_setup_multiple_pads(
@@ -292,8 +293,9 @@ int board_mmc_init(bd_t *bis)
 	       }
 
 	       status |= fsl_esdhc_initialize(bis, &usdhc_cfg[index]);
+	       debug("after status |= fsl_esdhc_initalize\n");
        }
-
+       debug("exiting board_mmc_init\n");
        return status;
 }
 #endif
