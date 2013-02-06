@@ -258,7 +258,8 @@
 /* Physical Memory Map */
 #define CONFIG_NR_DRAM_BANKS	       1
 #define PHYS_SDRAM		       MMDC0_ARB_BASE_ADDR
-#define PHYS_SDRAM_SIZE			       (2 * 1024 * 1024 * 1024) // largest "safe" autodetect is 2GiB, empirically determined
+//#define PHYS_SDRAM_SIZE			       (3 * 1024 * 1024 * 1024) // largest "safe" autodetect is 2GiB, empirically determined
+#define PHYS_SDRAM_SIZE			       (0xF0000000)
 
 #define CONFIG_SYS_SDRAM_BASE	       PHYS_SDRAM
 #define CONFIG_SYS_INIT_RAM_ADDR       IRAM_BASE_ADDR

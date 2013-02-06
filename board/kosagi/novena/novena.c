@@ -42,6 +42,128 @@
 #include <asm/arch/crm_regs.h>
 #include <i2c.h>
 
+#define SPD_NUMBYTES         0
+#define SPD_REVISION         1
+#define SPD_DRAM_DEVICE_TYPE 2
+#define SPD_MODULE_TYPE      3
+#define SPD_SDRAM_DENSITY_AND_BANKS 4
+#define SPD_SDRAM_ADDRESSING 5
+#define SPD_NOMINAL_VOLTAGE  6
+#define SPD_ORGANIZATION     7
+#define SPD_BUS_WIDTH        8
+
+#define SPD_MTB_DIVIDEND     10
+#define SPD_MTB_DIVISOR      11
+#define SPD_TCKMIN           12
+
+#define SPD_CL_LSB           14
+#define SPD_CL_MSB           15
+#define SPD_TAAMIN           16
+#define SPD_TWRMIN           17
+#define SPD_TRCDMIN          18
+#define SPD_TRRDMIN          19
+#define SPD_TRPMIN           20
+#define SPD_TRAS_TRC_MSB     21
+#define SPD_TRAS_LSB         22
+#define SPD_TRC_LSB          23
+#define SPD_TRFC_LSB         24
+#define SPD_TRFC_MSB         25
+#define SPD_WTRMIN           26
+#define SPD_RTPMIN           27
+#define SPD_TFAW_MSB         28
+#define SPD_TFAW_LSB         29
+#define SPD_OPTIONAL         30
+#define SPD_THERMAL          31
+
+#define SPD_VENDOR_ID_LSB    117
+#define SPD_VENDOR_ID_MSB    118
+
+#define SPD_NAME             128
+
+#define MTB_PER_CYC          0xF  // 15 * 0.125ns per 533MHz clock cycle
+
+struct ddr_spd {
+  uint   density;
+  uint   banks;
+  uint   rows;
+  uint   cols;
+  uint   rank;
+  uint   devwidth;
+  uint   capacity;  // in megabits
+  uint   clockrate; // in MHz
+  uint   caslatency;
+  uint   tAAmin;
+  uint   tWRmin;
+  uint   tRCDmin;
+  uint   tRRDmin;
+  uint   tRPmin;
+  uint   tRAS;
+  uint   tRC;
+  uint   tRFCmin;
+  uint   tWTRmin;
+  uint   tRTPmin;
+  uint   tFAW;
+  uint   vendorID;
+  u_char name[19];
+};
+
+void reg32_write(unsigned int addr, unsigned int data) {
+  //  debug( "wrote %08lx to %08lx\n", data, addr );
+  *((unsigned int *) addr) = (unsigned int) data;
+}
+
+unsigned int reg32_read(unsigned int addr) {
+  unsigned int data;
+  data = *((unsigned int *)addr);
+  //  debug( "read %08lx from %08lx\n", data, addr );
+  return data;
+}
+
+void reg32setbit(unsigned int addr, unsigned int bit) {
+  *((unsigned int *)addr) |= (1 << bit);
+}
+void reg32clrbit(unsigned int addr, unsigned int bit) {
+  *((unsigned int *)addr) &= ~(1 << bit);
+}
+
+//  write_level_calib(0x42);
+#define MDPDC_OFFSET 0x0004
+#define MDCFG0_OFFSET 0x000C
+#define MDCFG1_OFFSET 0x0010
+#define MDCFG2_OFFSET 0x0014
+#define MAPSR_OFFSET 0x0404
+#define MDREF_OFFSET 0x0020
+#define MDASP_OFFSET 0x0040
+#define MPZQHWCTRL_OFFSET 0x0800
+#define MDSCR_OFFSET 0x001C
+#define MPWLGCR_OFFSET 0x0808
+#define MPWLDECTRL0_OFFSET 0x080c
+#define MPWLDECTRL1_OFFSET 0x0810
+#define MDCTL_OFFSET 0x0000
+#define MDMISC_OFFSET 0x0018
+#define MPPDCMPR1_OFFSET 0x088C
+#define MPSWDAR_OFFSET 0x0894
+#define MPRDDLCTL_OFFSET 0x0848
+#define MPMUR_OFFSET 0x08B8
+#define MPDGCTRL0_OFFSET 0x083C
+#define MPDGHWST0_OFFSET 0x087C
+#define MPDGHWST1_OFFSET 0x0880
+#define MPDGHWST2_OFFSET 0x0884
+#define MPDGHWST3_OFFSET 0x0888
+#define MPDGCTRL1_OFFSET 0x0840
+#define MPRDDLHWCTL_OFFSET 0x0860
+#define MPWRDLCTL_OFFSET 0x0850
+#define MPWRDLHWCTL_OFFSET 0x0864
+
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS0 0x020E05A8
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS1 0x020E05B0
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS2 0x020E0524
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS3 0x020E051C
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS4 0x020E0518
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS5 0x020E050C
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS6 0x020E05B8
+#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS7 0x020E05C0
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |	       \
@@ -68,32 +190,6 @@ DECLARE_GLOBAL_DATA_PTR;
 	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |		\
 	PAD_CTL_DSE_40ohm | PAD_CTL_HYS |			\
 	PAD_CTL_ODE | PAD_CTL_SRE_FAST)
-
-int dram_init(void)
-{
-  do_tune_mww(NULL, 0, 1, NULL);
-  do_tune_mrr(NULL, 0, 1, NULL);
-  do_tune_wcal(NULL, 0, 1, NULL);
-  udelay(100000);
-  do_tune_delays(NULL, 0, 1, NULL);
-  do_tune_delays(NULL, 0, 1, NULL);
-  do_tune_mww(NULL, 0, 1, NULL);
-  do_tune_mrr(NULL, 0, 1, NULL);
-
-	gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
-
-	return 0;
-}
-
-iomux_v3_cfg_t uart1_pads[] = {
-	MX6Q_PAD_SD3_DAT6__UART1_RXD | MUX_PAD_CTRL(UART_PAD_CTRL),
-	MX6Q_PAD_SD3_DAT7__UART1_TXD | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-iomux_v3_cfg_t uart2_pads[] = {
-       MX6Q_PAD_EIM_D26__UART2_TXD | MUX_PAD_CTRL(UART_PAD_CTRL),
-       MX6Q_PAD_EIM_D27__UART2_RXD | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
 
 #define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
 
@@ -137,6 +233,436 @@ struct i2c_pads_info i2c_pad_info2 = {
 		.gpio_mode = MX6Q_PAD_GPIO_16__GPIO_7_11 | PC,
 		.gp = IMX_GPIO_NR(7, 11)
 	}
+};
+
+#define DISP_LINE_LEN 16
+
+void print_i2c_dbg() {
+  printf( "IADR: %04x\n", *((unsigned short *)0x21A0000) );
+  printf( "IFDR: %04x\n", *((unsigned short *)0x21A0004) );
+  printf( "I2CR: %04x\n", *((unsigned short *)0x21A0008) );
+  printf( "I2SR: %04x\n", *((unsigned short *)0x21A000C) );
+  printf( "I2DR: %04x\n", *((unsigned short *)0x21A0010) );
+  printf( "clock: %08lx\n", *((unsigned int *)0x20C4070) );
+}
+
+void dram_fatal() {
+  puts ("Fatal error; resetting...\n");  // reset in case it's a transient error reading SPD
+  udelay (50000);				/* wait 50 ms */
+  disable_interrupts();
+  reset_cpu(0);
+}
+
+unsigned int mtb_to_cycles(unsigned int mtbs) {
+  return (mtbs / MTB_PER_CYC) + (((mtbs % MTB_PER_CYC) > 0) ? 1 : 0);
+}
+
+int dram_init(void)
+{  // init ddr3, do calibrations
+  u_char	chip;
+  uint	addr, alen, length;
+  int	j, nbytes, linebytes;
+  u_char spd[256];
+  int  i;
+  struct ddr_spd ddrSPD;
+  unsigned short cl_support = 0;
+  unsigned int cfgval = 0;
+  int errorcount = 0;
+
+  puts( "\nSPD dump:\n" );
+  struct mxc_i2c_regs *i2c_regs = (struct mxc_i2c_regs *)0x21A0000;
+
+  chip   = 0x50;
+  addr   = 0x0;
+  alen   = 0x1;
+  length = 0x100; // length to display
+
+  setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info0);
+
+  i2c_init(100000, 0); // 100khz, second argument is not used in mx6
+
+  nbytes = length;
+  i = 0;
+  do {
+    unsigned char	linebuf[DISP_LINE_LEN];
+    unsigned char	*cp;
+
+    linebytes = (nbytes > DISP_LINE_LEN) ? DISP_LINE_LEN : nbytes;
+
+    if (i2c_read(chip, addr, alen, linebuf, linebytes) != 0) {
+      puts ("Error reading SPD on DDR3.\n");
+      dram_fatal();
+    } else {
+      printf("%04x:", addr);
+      cp = linebuf;
+      for (j=0; j<linebytes; j++) {
+	spd[i++] = *cp;
+	printf(" %02x", *cp++);
+	addr++;
+      }
+      puts ("    ");
+      cp = linebuf;
+      for (j=0; j<linebytes; j++) {
+	if ((*cp < 0x20) || (*cp > 0x7e))
+	  puts (".");
+	else
+	  printf("%c", *cp);
+	cp++;
+      }
+      putc ('\n');
+    }
+    nbytes -= linebytes;
+  } while (nbytes > 0);
+
+  puts( "\nRaw DDR3 characteristics based on SPD:\n" );
+  if( (spd[SPD_DRAM_DEVICE_TYPE] != 0xB) || (spd[SPD_MODULE_TYPE] != 3) ) {
+    puts( "Unrecognized DIMM type installed\n" );
+    dram_fatal();
+  }
+  
+  if( (spd[SPD_SDRAM_DENSITY_AND_BANKS] & 0x30) != 0 ) {
+    puts( "  Warning: memory has an unsupported bank size\n" );
+  } else {
+    puts( "  8 banks\n" );
+  }
+  ddrSPD.banks = 8;
+
+  ddrSPD.density = 256 * (1 << (spd[SPD_SDRAM_DENSITY_AND_BANKS] & 0xF));
+  printf( "  Individual chip density is %d Mib\n", ddrSPD.density );
+  
+  ddrSPD.rows = ((spd[SPD_SDRAM_ADDRESSING] & 0x38) >> 3) + 12;
+  ddrSPD.cols = (spd[SPD_SDRAM_ADDRESSING] & 0x7) + 9;
+  printf( "  Rows: %d, Cols: %d\n", ddrSPD.rows, ddrSPD.cols );
+  
+  if( spd[SPD_NOMINAL_VOLTAGE] & 0x1 ) {
+    puts( "Module not operable at 1.5V, fatal error.\n" );
+    dram_fatal();
+  } else {
+    puts( "  Supports 1.5V operation.\n" );
+  }
+  
+  ddrSPD.rank = ((spd[SPD_ORGANIZATION] >> 3) & 0x7) + 1;
+  printf( "  Module has %d rank(s)\n", ddrSPD.rank );
+  
+  ddrSPD.devwidth = (1 << (spd[SPD_ORGANIZATION] & 0x7)) * 4;
+  printf( "  Chips have a width of %d bits\n", ddrSPD.devwidth );
+
+  if( spd[SPD_BUS_WIDTH] != 0x3 ) {
+    puts( "Unsupported device width, fatal.\n" );
+    dram_fatal();
+  } else {
+    puts( "  Module width is 64 bits, no ECC\n" );
+  }
+  
+  ddrSPD.capacity = (64 / ddrSPD.devwidth) * ddrSPD.rank * ddrSPD.density;
+  printf( "  Module capacity is %d GiB\n", ddrSPD.capacity / 8192 );
+
+  if( (spd[SPD_MTB_DIVIDEND] != 1) || (spd[SPD_MTB_DIVISOR] != 8) ) {
+    puts( "Module has non-standard MTB for timing calculation. Doesn't mean the module is bad, just means this bootloader can't derive timing information based on the units coded in the SPD. This in, unfortunately, a fatal error. File a bug to get it fixed.\n" );
+    dram_fatal();
+  }
+  
+  switch( spd[SPD_TCKMIN] ) {
+  case 0x14: ddrSPD.clockrate = 400;
+    break;
+  case 0x0F: ddrSPD.clockrate = 533;
+    break;
+  case 0x0C: ddrSPD.clockrate = 667;
+    break;
+  case 0x0A: ddrSPD.clockrate = 800;
+    break;
+  case 0x09: ddrSPD.clockrate = 933;
+    break;
+  case 0x08: ddrSPD.clockrate = 1067;
+    break;
+  default:
+    if( spd[SPD_TCKMIN] <= 0xF ) {
+      puts("**undecodable but sufficiently fast clock rate detected\n");
+      ddrSPD.clockrate = 533;
+    } else {
+      puts("**undecodable but too slow clock rate detected\n");
+      ddrSPD.clockrate = 400;
+    }
+  }
+  printf( "  DDR3-%d speed rating detected\n", ddrSPD.clockrate * 2 );
+  if( ddrSPD.clockrate < 533 ) {
+    puts( "Fatal error: memory is too slow.\n" );
+    dram_fatal();
+  }
+  
+  //  cl_support is a bit vector with bit 0 set <-> CL=4, bit 1 set <-> CL=5, etc.
+  // these are just supported rates, not the actual rate computed
+  cl_support = (spd[SPD_CL_MSB] << 8) | spd[SPD_CL_LSB];
+  
+  ddrSPD.caslatency = mtb_to_cycles((unsigned int) spd[SPD_TAAMIN]);
+  
+  while( !((1 << (ddrSPD.caslatency - 4)) & cl_support) ) {
+    if( ddrSPD.caslatency > 18 ) {
+      puts( "Fatal error: no module-supported CAS latencies found\n" );
+      dram_fatal();
+    }
+    ddrSPD.caslatency++;
+  }
+  if( ddrSPD.caslatency > 11 ) {
+    puts( "Fatal error: cas latency larger than supported by i.MX6\n" );
+    dram_fatal();
+  }
+  if( ddrSPD.caslatency < 3 ) {
+    puts( "Fatal error: cas latency shorter than supported by i.MX6\n" );
+    dram_fatal();
+  }
+  puts( "Derived optimal timing parameters, in 533MHz cycles:\n" );
+  printf( "  CAS latency: %d\n", ddrSPD.caslatency );
+
+  ddrSPD.tWRmin = mtb_to_cycles((unsigned int) spd[SPD_TWRMIN]);
+  if( ddrSPD.tWRmin > 8 ) {
+    puts( "  optimal tWRmin greater than supported by i.MX6, value saturated.\n" );
+    ddrSPD.tWRmin = 8;
+  }
+  printf( "  tWRmin: %d\n", ddrSPD.tWRmin );
+
+  ddrSPD.tRCDmin = mtb_to_cycles((unsigned int) spd[SPD_TRCDMIN]);
+  if( ddrSPD.tRCDmin > 8 ) {
+    puts( "  optimal tRCDmin greater than supported by i.MX6, value saturated.\n" );
+    ddrSPD.tRCDmin = 8;
+  }
+  printf( "  tRCDmin: %d\n", ddrSPD.tRCDmin );
+
+  ddrSPD.tRRDmin = mtb_to_cycles((unsigned int) spd[SPD_TRRDMIN]);
+  if( ddrSPD.tRRDmin > 0x8 ) {
+    puts( "  optimal tRRDmin greater than supported by i.MX6, value saturated.\n" );
+    ddrSPD.tRRDmin = 0x8;
+  }
+  printf( "  tRRDmin: %d\n", ddrSPD.tRRDmin );
+
+  ddrSPD.tRPmin = mtb_to_cycles((unsigned int) spd[SPD_TRPMIN]);
+  printf( "  tRPmin: %d\n", ddrSPD.tRPmin );
+  if( ddrSPD.tRPmin > 8 ) {
+    puts( "  optimal tRPmin greater than supported by i.MX6, value saturated.\n" );
+    ddrSPD.tRPmin = 8;
+  }
+
+  ddrSPD.tRAS = mtb_to_cycles((unsigned int) spd[SPD_TRAS_LSB] | 
+			      (((unsigned int) spd[SPD_TRAS_TRC_MSB] & 0xF) << 8) );
+  if( ddrSPD.tRAS > 0x20 ) {
+    puts( "  optimal tRAS greater than supported by i.MX6, value saturated.\n" );
+    ddrSPD.tRAS = 0x20;
+  }
+  printf( "  tRAS: %d\n", ddrSPD.tRAS );
+
+  ddrSPD.tRC = mtb_to_cycles((unsigned int) spd[SPD_TRC_LSB] |
+			     (((unsigned int) spd[SPD_TRAS_TRC_MSB] & 0xF0) << 4) );
+  if( ddrSPD.tRC > 0x20 ) {
+    puts( "  optimal tRC greater than supported by i.MX6, value saturated.\n" );
+    ddrSPD.tRC = 0x20;
+  }
+  printf( "  tRC: %d\n", ddrSPD.tRC );
+
+  ddrSPD.tRFCmin = mtb_to_cycles((unsigned int) spd[SPD_TRFC_LSB] | 
+				 ((unsigned int) spd[SPD_TRFC_MSB]) << 8 );
+  if( ddrSPD.tRFCmin > 0x100 ) {
+    ddrSPD.tRFCmin = 0x100;
+    puts( "  Info: derived tRFCmin exceeded max allowed value by i.MX6\n" );
+  }
+  printf( "  tRFCmin: %d\n", ddrSPD.tRFCmin );
+
+  ddrSPD.tWTRmin = mtb_to_cycles((unsigned int) spd[SPD_WTRMIN]);
+  if( ddrSPD.tWTRmin > 0x8 ) {
+    puts( "  optimal tWTRmin greater than supported by i.MX6, value saturated.\n" );
+    ddrSPD.tWTRmin = 0x8;
+  }
+  printf( "  tWTRmin: %d\n", ddrSPD.tWTRmin );
+  
+  ddrSPD.tRTPmin = mtb_to_cycles((unsigned int) spd[SPD_RTPMIN]);
+  if( ddrSPD.tRTPmin > 0x8 ) {
+    puts( "  optimal tRTPmin greater than supported by i.MX6, value saturated.\n" );
+    ddrSPD.tRTPmin = 0x8;
+  }
+  printf( "  tRTPmin: %d\n", ddrSPD.tRTPmin );
+
+  ddrSPD.tFAW = mtb_to_cycles((unsigned int) spd[SPD_TFAW_LSB] |
+			      ((unsigned int) spd[SPD_TFAW_MSB]) << 8 );
+  if( ddrSPD.tFAW > 0x20 ) {
+    ddrSPD.tFAW = 0x20;
+    puts( "  Info: derived tFAW exceeded max allowed value by i.MX6\n");
+  }
+  printf( "  tFAW: %d\n", ddrSPD.tFAW );
+
+  if( spd[SPD_THERMAL] & 0x80 )
+    puts( "Info: thermal sensor exists on this module\n" );
+  else
+    puts( "Info: no thermal sensor on-module\n" );
+  
+  ddrSPD.vendorID = spd[SPD_VENDOR_ID_LSB] | (spd[SPD_VENDOR_ID_MSB] << 8);
+  printf( "Vendor ID: 0x%04x\n", ddrSPD.vendorID );
+
+  for( i = 0; i < 18; i++ ) {
+    ddrSPD.name[i] = spd[SPD_NAME + i];
+  }
+  ddrSPD.name[i] = '\0';
+  printf( "Module name: %s\n", ddrSPD.name );
+
+  puts("\nReprogramming DDR timings...\n" );
+
+  cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET);
+  printf( "Original CTL: %08x\n", cfgval );
+  cfgval = 0x80000000;
+  if( ddrSPD.rank == 2 ) 
+    cfgval |= 0x40000000;
+  cfgval |= (ddrSPD.rows - 11) << 24;
+  cfgval |= (ddrSPD.cols - 9) << 20;
+  cfgval |= 1 << 19; // burst length = 8
+  cfgval |= 2 << 16; // data size is 64 bits
+  printf( "Optimal CTL: %08x\n", cfgval );
+  reg32_write(MMDC_P0_BASE_ADDR + MDCTL_OFFSET, cfgval);
+
+  cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDASP_OFFSET);
+  printf( "Original ASP: %08x\n", cfgval );
+  cfgval = (ddrSPD.capacity / (256 * ddrSPD.rank)) - 1;
+  printf( "Optimal ASP: %08x\n", cfgval );
+  reg32_write(MMDC_P0_BASE_ADDR + MDASP_OFFSET, cfgval );
+
+  cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDCFG0_OFFSET);
+  printf( "Original CFG0: %08x\n", cfgval );
+  cfgval &= 0x00FFFE00;
+  cfgval |= ((ddrSPD.tRFCmin - 1) << 24);
+  cfgval |= ((ddrSPD.tFAW - 1) & 0x1F << 4);
+  cfgval |= ddrSPD.caslatency - 3;
+  printf( "Optimal CFG0: %08x\n", cfgval );
+  reg32_write(MMDC_P0_BASE_ADDR + MDCFG0_OFFSET,  cfgval );
+
+  cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDCFG1_OFFSET);
+  printf( "Original CFG1: %08x\n", cfgval );
+  cfgval &= 0x000081FF;
+  cfgval |= ((ddrSPD.tRCDmin - 1) << 29);
+  cfgval |= ((ddrSPD.tRPmin - 1) << 26);
+  cfgval |= ((ddrSPD.tRC - 1) << 21);
+  cfgval |= ((ddrSPD.tRAS -1) << 16);
+  cfgval |= ((ddrSPD.tWRmin -1) << 9);
+  if( (cfgval & 0x7) + 2 < ddrSPD.caslatency ) {
+    printf( "Original CFG1 tCWL shorter than supported cas latency, fixing...\n" );
+    cfgval &= 0xFFFFFFF8;
+    if( ddrSPD.caslatency > 7 )
+      cfgval |= 0x6;
+    else
+      cfgval |= (ddrSPD.caslatency - 2);
+  }
+  printf( "Optimal CFG1: %08x\n", cfgval );
+  reg32_write(MMDC_P0_BASE_ADDR + MDCFG1_OFFSET,  cfgval );
+
+  cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDCFG2_OFFSET);
+  printf( "Original CFG2: %08x\n", cfgval );
+  cfgval &= 0xFFFF0000;
+  cfgval |= ((ddrSPD.tRTPmin - 1) << 6);
+  cfgval |= ((ddrSPD.tWTRmin - 1) << 3);
+  cfgval |= ((ddrSPD.tRRDmin - 1) << 0);
+  printf( "Optimal CFG2: %08x\n", cfgval );
+  reg32_write(MMDC_P0_BASE_ADDR + MDCFG2_OFFSET, cfgval );
+    
+  // write and readback some dummy data to demonstrate that ddr3 is broken
+  puts("\nReference read/write test prior to tuning\n");
+  do_tune_mww(NULL, 0, 1, NULL);
+  do_tune_mrr(NULL, 0, 1, NULL);
+
+  // do write (fly-by) calibration
+  puts("\nFly-by calibration\n");
+  errorcount = do_tune_wcal(NULL, 0, 1, NULL);
+  udelay(100000);
+  // let it settle in...seems it's necessary
+  if( errorcount != 0 ) {
+    puts( "Fly-by calibration seems to have failed. Guessing values for wcal based on rank...\n" );
+    if( ddrSPD.rank == 1 ) {
+      // MMDC_MPWLDECTRL0 after write level cal: 0x0047004C
+      // MMDC_MPWLDECTRL1 after write level cal: 0x006B0064
+      // MMDC_MPWLDECTRL0 after write level cal: 0x00690112
+      // MMDC_MPWLDECTRL1 after write level cal: 0x010F0122
+      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x0047004C);
+      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x006B0064);
+      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x00690112);
+      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x010F0122);
+    } else {
+      // MMDC_MPWLDECTRL0 after write level cal: 0x0030003B
+      // MMDC_MPWLDECTRL1 after write level cal: 0x001A005D
+      // MMDC_MPWLDECTRL0 after write level cal: 0x006D0161
+      // MMDC_MPWLDECTRL1 after write level cal: 0x011A013A
+      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x0030003B);
+      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x001A005D);
+      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x006D0161);
+      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x011A013A);
+    }
+  }
+
+  // tune dqs delays. For some reason, has to be run twice.
+  puts("\nDQS delay calibration\n");
+  do_tune_delays(NULL, 0, 1, NULL);
+  errorcount = do_tune_delays(NULL, 0, 1, NULL);
+  if( errorcount != 0 ) {
+    puts( "DQS delay calibration has failed. Guessing values for delay cal based on rank...\n" );
+    if( ddrSPD.rank == 1 ) {
+      // Read DQS Gating calibration
+      // MPDGCTRL0 PHY0 (0x021b083c) = 0x457D060D
+      // MPDGCTRL1 PHY0 (0x021b0840) = 0x06130618
+      // MPDGCTRL0 PHY1 (0x021b483c) = 0x465A065A
+      // MPDGCTRL1 PHY1 (0x021b4840) = 0x06680628
+      // Read calibration
+      // MPRDDLCTL PHY0 (0x021b0848) = 0x4B443F45
+      // MPRDDLCTL PHY1 (0x021b4848) = 0x494B414D
+      // Write calibration
+      // MPWRDLCTL PHY0 (0x021b0850) = 0x33334333
+      // MPWRDLCTL PHY1 (0x021b4850) = 0x3E2F463A
+      reg32_write( 0x021b083c, 0x457D060D);
+      reg32_write( 0x021b0840, 0x06130618);
+      reg32_write( 0x021b483c, 0x465A065A);
+      reg32_write( 0x021b4840, 0x06680628);
+      reg32_write( 0x021b0848, 0x4B443F45);
+      reg32_write( 0x021b4848, 0x494B414D);
+      reg32_write( 0x021b0850, 0x33334333);
+      reg32_write( 0x021b4850, 0x3E2F463A);
+    } else {
+      // Read DQS Gating calibration
+      // MPDGCTRL0 PHY0 (0x021b083c) = 0x460F0625
+      // MPDGCTRL1 PHY0 (0x021b0840) = 0x05590643
+      // MPDGCTRL0 PHY1 (0x021b483c) = 0x467D073F
+      // MPDGCTRL1 PHY1 (0x021b4840) = 0x070B0671
+      // Read calibration
+      // MPRDDLCTL PHY0 (0x021b0848) = 0x473F4545
+      // MPRDDLCTL PHY1 (0x021b4848) = 0x47454049
+      // Write calibration
+      // MPWRDLCTL PHY0 (0x021b0850) = 0x43324530
+      // MPWRDLCTL PHY1 (0x021b4850) = 0x3D33353F
+      reg32_write( 0x021b083c, 0x460F0625);
+      reg32_write( 0x021b0840, 0x05590643);
+      reg32_write( 0x021b483c, 0x467D073F);
+      reg32_write( 0x021b4840, 0x070B0671);
+      reg32_write( 0x021b0848, 0x473F4545);
+      reg32_write( 0x021b4848, 0x47454049);
+      reg32_write( 0x021b0850, 0x43324530);
+      reg32_write( 0x021b4850, 0x3D33353F);
+    }
+  }
+
+  // confirm that the memory is working by read/write demo. Confirmation currently read out on terminal
+  puts("\nReference read/write test post-tuning\n");
+  do_tune_mww(NULL, 0, 1, NULL);
+  do_tune_mrr(NULL, 0, 1, NULL);
+
+  printf( "ddrSPD.capacity: %08lx\n", ddrSPD.capacity );
+  printf( "Ramsize according to SPD: %08lx\n", ((ddrSPD.capacity / 8) - 256) * 1024 * 1024 );
+  //  gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
+  gd->ram_size = ((ddrSPD.capacity / 8) - 256) * 1024 * 1024;
+  printf( "Set gd->ram_size to %08lx\n", gd->ram_size );
+
+  return 0;
+}
+
+iomux_v3_cfg_t uart1_pads[] = {
+	MX6Q_PAD_SD3_DAT6__UART1_RXD | MUX_PAD_CTRL(UART_PAD_CTRL),
+	MX6Q_PAD_SD3_DAT7__UART1_TXD | MUX_PAD_CTRL(UART_PAD_CTRL),
+};
+
+iomux_v3_cfg_t uart2_pads[] = {
+       MX6Q_PAD_EIM_D26__UART2_TXD | MUX_PAD_CTRL(UART_PAD_CTRL),
+       MX6Q_PAD_EIM_D27__UART2_RXD | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
 iomux_v3_cfg_t usdhc3_pads[] = {
@@ -1131,59 +1657,6 @@ int do_tune_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return 0;	/* not reached */
 }
 
-void reg32_write(unsigned int addr, unsigned int data) {
-  //  debug( "wrote %08lx to %08lx\n", data, addr );
-  *((unsigned int *) addr) = (unsigned int) data;
-}
-
-unsigned int reg32_read(unsigned int addr) {
-  unsigned int data;
-  data = *((unsigned int *)addr);
-  //  debug( "read %08lx from %08lx\n", data, addr );
-  return data;
-}
-
-void reg32setbit(unsigned int addr, unsigned int bit) {
-  *((unsigned int *)addr) |= (1 << bit);
-}
-void reg32clrbit(unsigned int addr, unsigned int bit) {
-  *((unsigned int *)addr) &= ~(1 << bit);
-}
-
-//  write_level_calib(0x42);
-#define MDPDC_OFFSET 0x0004
-#define MAPSR_OFFSET 0x0404
-#define MDREF_OFFSET 0x0020
-#define MPZQHWCTRL_OFFSET 0x0800
-#define MDSCR_OFFSET 0x001C
-#define MPWLGCR_OFFSET 0x0808
-#define MPWLDECTRL0_OFFSET 0x080c
-#define MPWLDECTRL1_OFFSET 0x0810
-#define MDCTL_OFFSET 0x0000
-#define MDMISC_OFFSET 0x0018
-#define MPPDCMPR1_OFFSET 0x088C
-#define MPSWDAR_OFFSET 0x0894
-#define MPRDDLCTL_OFFSET 0x0848
-#define MPMUR_OFFSET 0x08B8
-#define MPDGCTRL0_OFFSET 0x083C
-#define MPDGHWST0_OFFSET 0x087C
-#define MPDGHWST1_OFFSET 0x0880
-#define MPDGHWST2_OFFSET 0x0884
-#define MPDGHWST3_OFFSET 0x0888
-#define MPDGCTRL1_OFFSET 0x0840
-#define MPRDDLHWCTL_OFFSET 0x0860
-#define MPWRDLCTL_OFFSET 0x0850
-#define MPWRDLHWCTL_OFFSET 0x0864
-
-#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS0 0x020E05A8
-#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS1 0x020E05B0
-#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS2 0x020E0524
-#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS3 0x020E051C
-#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS4 0x020E0518
-#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS5 0x020E050C
-#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS6 0x020E05B8
-#define IOMUXC_SW_PAD_CTL_PAD_DRAM_SDQS7 0x020E05C0
-
 int do_tune_wcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
   int temp1, temp2, temp3, dummy;
@@ -1317,7 +1790,7 @@ int do_tune_wcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, ldectrl[1]);
     reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, ldectrl[2]);
     reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, ldectrl[3]);
-    
+    errorcount++;
   }
   
   // User should issue MRS command to exit write leveling mode
