@@ -783,24 +783,21 @@ int board_ehci_hcd_init(int port)
 #ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg usdhc_cfg[2] = {
        {USDHC3_BASE_ADDR},
-       {USDHC4_BASE_ADDR},
+       {USDHC2_BASE_ADDR},
 };
 
 int board_mmc_getcd(struct mmc *mmc)
 {
-       struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
-       int ret;
+	struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
+	int ret;
 
-       printf( "board_mmc_getcd(): esdhc_base 0x%08x\n", cfg->esdhc_base );
-       if (cfg->esdhc_base == USDHC3_BASE_ADDR) {
+	if (cfg->esdhc_base == USDHC3_BASE_ADDR) {
 		gpio_direction_input(IMX_GPIO_NR(7, 0));
-		//		ret = !gpio_get_value(IMX_GPIO_NR(7, 0));
 		ret = 1; // there is no CD for a microSD card, and if we booted this baby is there.
-       } else {
-		gpio_direction_input(IMX_GPIO_NR(2, 6));
-		//		ret = !gpio_get_value(IMX_GPIO_NR(2, 6));
-		ret = 0;  // this card just doesn't exist on novena
-       }
+	} else {
+		gpio_direction_input(IMX_GPIO_NR(1, 4));
+		ret = !gpio_get_value(IMX_GPIO_NR(1, 4));
+	}
 
        return ret;
 }
