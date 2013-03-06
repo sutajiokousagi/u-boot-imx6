@@ -665,6 +665,16 @@ iomux_v3_cfg_t uart2_pads[] = {
        MX6Q_PAD_EIM_D27__UART2_RXD | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
+iomux_v3_cfg_t usdhc2_pads[] = {
+       MX6Q_PAD_SD2_CLK__USDHC2_CLK   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+       MX6Q_PAD_SD2_CMD__USDHC2_CMD   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+       MX6Q_PAD_SD2_DAT0__USDHC2_DAT0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+       MX6Q_PAD_SD2_DAT1__USDHC2_DAT1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+       MX6Q_PAD_SD2_DAT2__USDHC2_DAT2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+       MX6Q_PAD_SD2_DAT3__USDHC2_DAT3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+       MX6Q_PAD_GPIO_4__GPIO_1_4      | MUX_PAD_CTRL(NO_PAD_CTRL), /* CD */
+};
+
 iomux_v3_cfg_t usdhc3_pads[] = {
        MX6Q_PAD_SD3_CLK__USDHC3_CLK   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
        MX6Q_PAD_SD3_CMD__USDHC3_CMD   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
@@ -672,20 +682,8 @@ iomux_v3_cfg_t usdhc3_pads[] = {
        MX6Q_PAD_SD3_DAT1__USDHC3_DAT1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
        MX6Q_PAD_SD3_DAT2__USDHC3_DAT2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
        MX6Q_PAD_SD3_DAT3__USDHC3_DAT3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       //MX6Q_PAD_SD3_DAT5__GPIO_7_0    | MUX_PAD_CTRL(NO_PAD_CTRL), /* CD */
-       //MX6Q_PAD_NANDF_ALE__GPIO_6_8   | MUX_PAD_CTRL(NO_PAD_CTRL), //no WP either
 };
 
-// actually, usdhc4 isn't present at all -- this needs to be usdhc2 for novena
-iomux_v3_cfg_t usdhc4_pads[] = {
-       MX6Q_PAD_SD4_CLK__USDHC4_CLK   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       MX6Q_PAD_SD4_CMD__USDHC4_CMD   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       MX6Q_PAD_SD4_DAT0__USDHC4_DAT0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       MX6Q_PAD_SD4_DAT1__USDHC4_DAT1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       MX6Q_PAD_SD4_DAT2__USDHC4_DAT2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       MX6Q_PAD_SD4_DAT3__USDHC4_DAT3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-       //       MX6Q_PAD_NANDF_D6__GPIO_2_6    | MUX_PAD_CTRL(NO_PAD_CTRL), /* CD */
-};
 
 iomux_v3_cfg_t enet_pads1[] = {
 	MX6Q_PAD_ENET_MDIO__ENET_MDIO		| MUX_PAD_CTRL(ENET_PAD_CTRL),
@@ -815,7 +813,7 @@ int board_mmc_init(bd_t *bis)
 		       break;
 	       case 1:
 		       imx_iomux_v3_setup_multiple_pads(
-			       usdhc4_pads, ARRAY_SIZE(usdhc4_pads));
+			       usdhc2_pads, ARRAY_SIZE(usdhc2_pads));
 		       break;
 	       default:
 		       printf("Warning: you configured more USDHC controllers"
