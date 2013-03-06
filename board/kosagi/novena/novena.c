@@ -210,14 +210,14 @@ struct i2c_pads_info i2c_pad_info0 = {
 /* I2C2 Camera, MIPI */
 struct i2c_pads_info i2c_pad_info1 = {
 	.scl = {
-		.i2c_mode = MX6Q_PAD_KEY_COL3__I2C2_SCL | PC,
-		.gpio_mode = MX6Q_PAD_KEY_COL3__GPIO_4_12 | PC,
-		.gp = IMX_GPIO_NR(4, 12)
+		.i2c_mode = MX6Q_PAD_EIM_EB2__I2C2_SCL | PC,
+		.gpio_mode = MX6Q_PAD_EIM_EB2__GPIO_2_30 | PC,
+		.gp = IMX_GPIO_NR(2, 30)
 	},
 	.sda = {
-		.i2c_mode = MX6Q_PAD_KEY_ROW3__I2C2_SDA | PC,
-		.gpio_mode = MX6Q_PAD_KEY_ROW3__GPIO_4_13 | PC,
-		.gp = IMX_GPIO_NR(4, 13)
+		.i2c_mode = MX6Q_PAD_EIM_D16__I2C2_SDA | PC,
+		.gpio_mode = MX6Q_PAD_EIM_D16__GPIO_3_16 | PC,
+		.gp = IMX_GPIO_NR(3, 16)
 	}
 };
 
