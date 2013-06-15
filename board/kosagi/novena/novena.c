@@ -576,19 +576,33 @@ int dram_init(void)
       // MMDC_MPWLDECTRL1 after write level cal: 0x006B0064
       // MMDC_MPWLDECTRL0 after write level cal: 0x00690112
       // MMDC_MPWLDECTRL1 after write level cal: 0x010F0122
-      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x0047004C);
-      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x006B0064);
-      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x00690112);
-      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x010F0122);
+      // these are the proto-express build parameters
+      //      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x0047004C);
+      //      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x006B0064);
+      //      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x00690112);
+      //      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x010F0122);
+
+      // these are the king credie build parameters
+      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x00390042);
+      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x00650057);
+      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x00630106);
+      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x01060116);
     } else {
       // MMDC_MPWLDECTRL0 after write level cal: 0x0030003B
       // MMDC_MPWLDECTRL1 after write level cal: 0x001A005D
       // MMDC_MPWLDECTRL0 after write level cal: 0x006D0161
       // MMDC_MPWLDECTRL1 after write level cal: 0x011A013A
-      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x0030003B);
-      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x001A005D);
-      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x006D0161);
-      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x011A013A);
+      // these are the proto-express build parameters
+      // reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x0030003B);
+      // reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x001A005D);
+      // reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x006D0161);
+      // reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x011A013A);
+
+      // these are the king credie build parameters
+      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x00290039);
+      reg32_write(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x00160057);
+      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET, 0x00640158);
+      reg32_write(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET, 0x0111012C);
     }
   }
 
@@ -610,14 +624,26 @@ int dram_init(void)
       // Write calibration
       // MPWRDLCTL PHY0 (0x021b0850) = 0x33334333
       // MPWRDLCTL PHY1 (0x021b4850) = 0x3E2F463A
-      reg32_write( 0x021b083c, 0x457D060D);
-      reg32_write( 0x021b0840, 0x06130618);
-      reg32_write( 0x021b483c, 0x465A065A);
-      reg32_write( 0x021b4840, 0x06680628);
-      reg32_write( 0x021b0848, 0x4B443F45);
-      reg32_write( 0x021b4848, 0x494B414D);
-      reg32_write( 0x021b0850, 0x33334333);
-      reg32_write( 0x021b4850, 0x3E2F463A);
+
+      // protoexress build params
+      // reg32_write( 0x021b083c, 0x457D060D);
+      // reg32_write( 0x021b0840, 0x06130618);
+      // reg32_write( 0x021b483c, 0x465A065A);
+      // reg32_write( 0x021b4840, 0x06680628);
+      // reg32_write( 0x021b0848, 0x4B443F45);
+      // reg32_write( 0x021b4848, 0x494B414D);
+      // reg32_write( 0x021b0850, 0x33334333);
+      // reg32_write( 0x021b4850, 0x3E2F463A);
+
+      // king credie build params
+      reg32_write( 0x021b083c, 0x456B057A);
+      reg32_write( 0x021b0840, 0x057F0607);
+      reg32_write( 0x021b483c, 0x46470645);
+      reg32_write( 0x021b4840, 0x0651061D);
+      reg32_write( 0x021b0848, 0x48444249);
+      reg32_write( 0x021b4848, 0x4D4D424E);
+      reg32_write( 0x021b0850, 0x322D4132);
+      reg32_write( 0x021b4850, 0x3D2E3F37);
     } else {
       // Read DQS Gating calibration
       // MPDGCTRL0 PHY0 (0x021b083c) = 0x460F0625
@@ -630,14 +656,25 @@ int dram_init(void)
       // Write calibration
       // MPWRDLCTL PHY0 (0x021b0850) = 0x43324530
       // MPWRDLCTL PHY1 (0x021b4850) = 0x3D33353F
-      reg32_write( 0x021b083c, 0x460F0625);
-      reg32_write( 0x021b0840, 0x05590643);
-      reg32_write( 0x021b483c, 0x467D073F);
-      reg32_write( 0x021b4840, 0x070B0671);
-      reg32_write( 0x021b0848, 0x473F4545);
-      reg32_write( 0x021b4848, 0x47454049);
-      reg32_write( 0x021b0850, 0x43324530);
-      reg32_write( 0x021b4850, 0x3D33353F);
+      // proto express params
+      // reg32_write( 0x021b083c, 0x460F0625);
+      // reg32_write( 0x021b0840, 0x05590643);
+      // reg32_write( 0x021b483c, 0x467D073F);
+      // reg32_write( 0x021b4840, 0x070B0671);
+      // reg32_write( 0x021b0848, 0x473F4545);
+      // reg32_write( 0x021b4848, 0x47454049);
+      // reg32_write( 0x021b0850, 0x43324530);
+      // reg32_write( 0x021b4850, 0x3D33353F);
+
+      // king credie params
+      reg32_write( 0x021b083c, 0x4604061F);
+      reg32_write( 0x021b0840, 0x0555062B);
+      reg32_write( 0x021b483c, 0x4672073F);
+      reg32_write( 0x021b4840, 0x07010665);
+      reg32_write( 0x021b0848, 0x4B3F4145);
+      reg32_write( 0x021b4848, 0x48423F47);
+      reg32_write( 0x021b0850, 0x39354132);
+      reg32_write( 0x021b4850, 0x3C323840);
     }
   }
 
