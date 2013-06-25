@@ -1178,6 +1178,19 @@ void lcd_iomux(void)
 }
 #endif
 
+static iomux_v3_cfg_t edp_pads[] = {
+	/* eDP connector */
+	MX6Q_PAD_CSI0_DAT10__GPIO_5_28 | MUX_PAD_CTRL(NO_PAD_CTRL),
+#define EDP_GP IMX_GPIO_NR(5, 28)
+};
+static int edp_iomux(void)
+{
+	imx_iomux_v3_setup_multiple_pads(edp_pads,
+					 ARRAY_SIZE(edp_pads));
+	gpio_direction_output(EDP_GP, 1);
+	return 0;
+}
+
 int board_early_init_f(void)
 {
 	setup_iomux_uart();
@@ -1185,6 +1198,7 @@ int board_early_init_f(void)
 #if defined(CONFIG_VIDEO_IPUV3)
 	lcd_iomux();
 #endif
+	edp_iomux();
 	return 0;
 }
 
