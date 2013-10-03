@@ -23,7 +23,7 @@ include $(TOPDIR)/config.mk
 
 LIB    = $(obj)lib$(BOARD).o
 
-COBJS  := novena.o ddr.o
+COBJS  := novena.o ddr.o keyboard.o peripherals.o
 
 SRCS   := $(COBJS:.o=.c)
 OBJS   := $(addprefix $(obj),$(COBJS))

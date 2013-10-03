@@ -48,17 +48,6 @@
 #define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE	       UART2_BASE
 
-#define CONFIG_CMD_SF
-#ifdef CONFIG_CMD_SF
-#define CONFIG_SPI_FLASH
-#define CONFIG_SPI_FLASH_SST
-#define CONFIG_MXC_SPI
-#define CONFIG_SF_DEFAULT_BUS  0
-#define CONFIG_SF_DEFAULT_CS   (0|(IMX_GPIO_NR(3, 19)<<8))
-#define CONFIG_SF_DEFAULT_SPEED 25000000
-#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
-#endif
-
 /* I2C Configs */
 #define CONFIG_CMD_I2C
 #define CONFIG_I2C_MULTI_BUS
@@ -72,7 +61,6 @@
 #define IMX_OTP_BASE			OCOTP_BASE_ADDR
 #define IMX_OTP_ADDR_MAX		0x7F
 #define IMX_OTP_DATA_ERROR_VAL		0xBADABADA
-//#define IMX_OTPWRITE_ENABLED
 #endif
 
 /* MMC Configs */
@@ -102,20 +90,6 @@
 #define CONFIG_LIBATA
 #endif
 
-#if 0
-#define CONFIG_CMD_PING
-#define CONFIG_CMD_DHCP
-#define CONFIG_CMD_MII
-#define CONFIG_CMD_NET
-#define CONFIG_FEC_MXC
-#define CONFIG_MII
-#define IMX_FEC_BASE			ENET_BASE_ADDR
-#define CONFIG_FEC_XCV_TYPE		RGMII
-#define CONFIG_ETHPRIME			"FEC"
-#define CONFIG_FEC_MXC_PHYADDR		1
-#define CONFIG_FEC_MXC_PHYMASK		(0xf << 4)	/* scan phy 4,5,6,7 */
-#endif
-
 #ifndef IPU_CPMEM_REG_BASE
 #define IPU_CPMEM_REG_BASE     0x01000000
 #define IPU_LUT_REG_BASE       0x01020000
@@ -123,12 +97,6 @@
 #define IPU_TPM_REG_BASE       0x01060000
 #define IPU_DC_TMPL_REG_BASE   0x01080000
 #define IPU_ISP_TBPR_REG_BASE  0x010C0000
-#endif
-
-#if 0
-#define CONFIG_PHYLIB
-#define CONFIG_PHY_MICREL
-#define CONFIG_PHY_MICREL_KSZ9021
 #endif
 
 /* USB Configs */
@@ -195,28 +163,34 @@
 #define CONFIG_SYS_SKIP_ARM_RELOCATION
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
-       "script=boot.scr\0" \
-       "uimage=uimage-novena\0" \
+	"prep_gbit=true\0" \
+	"prep_pcie=true\0" \
+	"prep_pmb=true\0" \
+	"prep_es8328=true\0" \
+	"prep_retina=true\0" \
+	"prep_pixelqi=true\0" \
+	"script=boot.scr\0" \
+	"uimage=uimage-novena\0" \
 	"console=ttymxc1\0" \
 	"fdt_high=0xffffffff\0"	  \
 	"initrd_high=0xffffffff\0" \
-       "mmcdev=0\0" \
-       "mmcpart=1\0" \
-       "mmcroot=/dev/mmcblk0p2 rootwait rw\0" \
-       "mmcargs=setenv bootargs console=${console},${baudrate} " \
+	"mmcdev=0\0" \
+	"mmcpart=1\0" \
+	"mmcroot=/dev/mmcblk0p2 rootwait rw\0" \
+	"mmcargs=setenv bootargs console=${console},${baudrate} " \
 	       "root=${mmcroot}\0" \
-       "loadbootscript=" \
+	"loadbootscript=" \
 	       "fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};\0" \
-       "bootscript=echo Running bootscript from mmc ...; " \
+	"bootscript=echo Running bootscript from mmc ...; " \
 	       "source\0" \
-       "loaduimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${uimage}\0" \
-       "mmcboot=echo Booting from mmc ...; " \
+	"loaduimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${uimage}\0" \
+	"mmcboot=echo Booting from mmc ...; " \
 	       "run mmcargs; " \
 	       "bootm\0" \
-       "netargs=setenv bootargs console=${console},${baudrate} " \
+	"netargs=setenv bootargs console=${console},${baudrate} " \
 	       "root=/dev/nfs " \
 	       "ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp\0" \
-       "netboot=echo Booting from net ...; " \
+	"netboot=echo Booting from net ...; " \
 	       "run netargs; " \
 	       "dhcp ${uimage}; bootm\0" \
 
@@ -258,7 +232,6 @@
 /* Physical Memory Map */
 #define CONFIG_NR_DRAM_BANKS	       1
 #define PHYS_SDRAM		       MMDC0_ARB_BASE_ADDR
-//#define PHYS_SDRAM_SIZE			       (3 * 1024 * 1024 * 1024) // largest "safe" autodetect is 2GiB, empirically determined
 #define PHYS_SDRAM_SIZE			       (0xF0000000)
 
 #define CONFIG_SYS_SDRAM_BASE	       PHYS_SDRAM
@@ -276,7 +249,6 @@
 #define CONFIG_ENV_SIZE			(8 * 1024)
 
 #define CONFIG_ENV_IS_IN_MMC
-/* #define CONFIG_ENV_IS_IN_SPI_FLASH */
 
 #if defined(CONFIG_ENV_IS_IN_MMC)
 #define CONFIG_ENV_OFFSET		(6 * 64 * 1024)
