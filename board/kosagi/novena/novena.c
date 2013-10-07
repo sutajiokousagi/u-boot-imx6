@@ -618,9 +618,48 @@ int checkboard(void)
        return 0;
 }
 
+#define BOOT_CFG 0x020d8004
+enum boot_src {
+	bootsrc_nor = 0,
+	bootsrc_sata = 2,
+	bootsrc_i2c = 3,
+	bootsrc_sd0 = 4,
+	bootsrc_sd1 = 5,
+	bootsrc_mmc0 = 6,
+	bootsrc_mmc1 = 7,
+	bootsrc_nand = 8,
+};
+
+static void set_boot_source(void)
+{
+	uint32_t boot_cfg = __raw_readl(BOOT_CFG);
+	switch ((boot_cfg >> 4) & 0xf) {
+	case bootsrc_sd0:
+	case bootsrc_mmc0:
+		setenv("bootsrc", "mmc");
+		setenv("bootdev", "0");
+		break;
+
+	case bootsrc_sd1:
+	case bootsrc_mmc1:
+		setenv("bootsrc", "mmc");
+		setenv("bootdev", "1");
+		break;
+
+	case bootsrc_sata:
+		setenv("bootsrc", "sata");
+		setenv("bootdev", "0");
+		break;
+
+	default:
+		break;
+	}
+}
+
 int misc_init_r(void)
 {
 	setup_peripherals();
+	set_boot_source();
 	return 0;
 }
 
