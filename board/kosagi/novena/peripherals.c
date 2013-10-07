@@ -29,11 +29,12 @@ struct feature {
 };
 
 static void setup_es8328(struct novena_eeprom_data *);
-static void setup_pmb(struct novena_eeprom_data *);
+static void setup_senoko(struct novena_eeprom_data *);
 static void setup_retina(struct novena_eeprom_data *);
 static void setup_pixelqi(struct novena_eeprom_data *);
 static void setup_pcie(struct novena_eeprom_data *);
 static void setup_gbit(struct novena_eeprom_data *);
+static void setup_hdmi(struct novena_eeprom_data *);
 
 struct feature features[] = {
 	{
@@ -43,10 +44,10 @@ struct feature features[] = {
 		.func  = setup_es8328,
 	},
 	{
-		.name  = "pmb",
+		.name  = "senoko",
 		.flags = 0x02,
 		.descr = "Power Management Board",
-		.func  = setup_pmb,
+		.func  = setup_senoko,
 	},
 	{
 		.name  = "retina",
@@ -71,6 +72,12 @@ struct feature features[] = {
 		.flags = 0x20,
 		.descr = "Gigabit Ethernet",
 		.func  = setup_gbit,
+	},
+	{
+		.name  = "hdmi",
+		.flags = 0x40,
+		.descr = "HDMI Output",
+		.func  = setup_hdmi,
 	},
 	{} /* Sentinal */
 };
@@ -102,8 +109,8 @@ static void setup_es8328(struct novena_eeprom_data *cfg) {
 	return;
 }
 
-static void setup_pmb(struct novena_eeprom_data *cfg) {
-	iomux_v3_cfg_t pmb_pads[] = {
+static void setup_senoko(struct novena_eeprom_data *cfg) {
+	iomux_v3_cfg_t senoko_pads[] = {
 		/* "Reprogram" pin */
 		MX6Q_PAD_CSI0_DATA_EN__GPIO_5_20 | MUX_PAD_CTRL(NO_PAD_CTRL),
 		/* "Reset" pin */
@@ -111,7 +118,7 @@ static void setup_pmb(struct novena_eeprom_data *cfg) {
 #define PMB_REPROG_GPIO IMX_GPIO_NR(5, 20)
 #define PMB_RESET_GPIO IMX_GPIO_NR(5, 21)
 	};
-	imx_iomux_v3_setup_multiple_pads(pmb_pads, ARRAY_SIZE(pmb_pads));
+	imx_iomux_v3_setup_multiple_pads(senoko_pads, ARRAY_SIZE(senoko_pads));
 
 	/* Reset the board */
 	gpio_direction_output(PMB_RESET_GPIO, 0);
@@ -123,7 +130,7 @@ static void setup_pmb(struct novena_eeprom_data *cfg) {
 	udelay(10000);
 	gpio_direction_output(PMB_RESET_GPIO, 1);
 
-	setenv("prep_pmb", "true");
+	setenv("prep_senoko", "true");
 
 	return;
 }
@@ -202,6 +209,22 @@ static void setup_gbit(struct novena_eeprom_data *cfg) {
 	}
 }
 
+static void setup_hdmi(struct novena_eeprom_data *cfg) {
+	iomux_v3_cfg_t hdmi_pads[] = {
+		/* "Ghost HPD" pin */
+		MX6Q_PAD_EIM_A24__GPIO_5_4 | MUX_PAD_CTRL(NO_PAD_CTRL),
+#define HDMI_GHOST_HPD IMX_GPIO_NR(5, 4)
+	};
+	imx_iomux_v3_setup_multiple_pads(hdmi_pads, ARRAY_SIZE(hdmi_pads));
+
+	/* Reset the board */
+	gpio_direction_input(HDMI_GHOST_HPD);
+
+	setenv("prep_hdmi",
+		"fdt set /soc/aips-bus@02000000/hdmi@0120000 status \"okay\"");
+	return;
+}
+
 int setup_peripherals(void)
 {
 	struct novena_eeprom_data cfg;
@@ -251,4 +274,3 @@ int setup_peripherals(void)
 
 	return 0;
 }
-

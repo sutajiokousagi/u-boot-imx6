@@ -165,10 +165,11 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"prep_gbit=true\0" \
 	"prep_pcie=true\0" \
-	"prep_pmb=true\0" \
+	"prep_senoko=true\0" \
 	"prep_es8328=true\0" \
 	"prep_retina=true\0" \
 	"prep_pixelqi=true\0" \
+	"prep_hdmi=true\0" \
 	"script=boot.scr\0" \
 	"uimage=uimage-novena\0" \
 	"console=ttymxc1\0" \
