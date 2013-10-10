@@ -138,7 +138,14 @@ static void setup_senoko(struct novena_eeprom_data *cfg) {
 static void setup_retina(struct novena_eeprom_data *cfg) {
 	setup_backlight();
 	setenv("prep_retina",
-		"fdt set /soc/aips-bus@02100000/i2c@021a8000/stdp4028@73 status \"okay\"; fdt set /soc/aips-bus@02000000/ldb@020e0008 status \"okay\"");
+	"fdt set "
+	"/soc/aips-bus@02100000/i2c@021a8000/stdp4028@73 status \"okay\"; "
+	"fdt set "
+	"/soc/aips-bus@02000000/ldb@020e0008 status \"okay\"; "
+	"fdt set "
+	"/soc/aips-bus@02000000/ldb@020e0008/lvds-channel@0 status \"okay\"; "
+	"fdt set "
+	"/soc/aips-bus@02000000/ldb@020e0008/lvds-channel@1 status \"okay\"");
 	return;
 }
 
