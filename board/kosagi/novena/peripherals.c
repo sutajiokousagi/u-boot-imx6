@@ -248,6 +248,9 @@ int setup_peripherals(void)
 		 */
 		setup_es8328(NULL);
 
+		/* Let the ES8328 come up */
+		udelay(10000);
+
 		if (i2c_read(EEPROM_ADDRESS, 0, 2,
 				(void *)&cfg, sizeof(cfg)) != 0) {
 			printf("Error: Unable to read personality EEPROM\n");
