@@ -47,10 +47,10 @@ block_dev_desc_t *ext4_dev_desc;
 
 struct ext_filesystem *get_fs(void)
 {
-	if (ext4_dev_desc == NULL || ext4_dev_desc->priv == NULL)
+	if (ext4_dev_desc == NULL || ext4_dev_desc->fspriv == NULL)
 		printf("Invalid Input Arguments %s\n", __func__);
 
-	return ext4_dev_desc->priv;
+	return ext4_dev_desc->fspriv;
 }
 
 int init_fs(block_dev_desc_t *dev_desc)
@@ -68,7 +68,7 @@ int init_fs(block_dev_desc_t *dev_desc)
 	}
 
 	fs->dev_desc = dev_desc;
-	dev_desc->priv = fs;
+	dev_desc->fspriv = fs;
 
 	return 0;
 }
@@ -79,8 +79,8 @@ void deinit_fs(block_dev_desc_t *dev_desc)
 		printf("Invalid Input Arguments %s\n", __func__);
 		return;
 	}
-	free(dev_desc->priv);
-	dev_desc->priv = NULL;
+	free(dev_desc->fspriv);
+	dev_desc->fspriv = NULL;
 }
 
 void ext4fs_free_node(struct ext2fs_node *node, struct ext2fs_node *currroot)

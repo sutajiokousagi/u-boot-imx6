@@ -53,6 +53,7 @@ typedef struct block_dev_desc {
 				       unsigned long start,
 				       lbaint_t blkcnt);
 	void		*priv;		/* driver private struct pointer */
+	void		*fspriv;	/* filesystem private struct pointer */
 }block_dev_desc_t;
 
 /* Interface types: */
