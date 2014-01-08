@@ -1,4 +1,3 @@
-#define DEBUG
 /*
  * Copyright (C) 2010-2011 Freescale Semiconductor, Inc.
  *
@@ -165,9 +164,9 @@ void reg32_write(unsigned int addr, unsigned int data) {
 	*((unsigned int *) addr) = (unsigned int) data;
 }
 
-unsigned int reg32_read(unsigned int addr) {
+volatile unsigned int reg32_read(unsigned int addr) {
 	unsigned int data;
-	data = *((unsigned int *)addr);
+	data = *((volatile unsigned int *)addr);
 	return data;
 }
 
@@ -186,6 +185,7 @@ static void dram_fatal(void)
 	udelay(50000);				/* wait 50 ms */
 	disable_interrupts();
 	reset_cpu(0);
+	while(1);
 }
 
 static unsigned int mtb_to_cycles(unsigned int mtbs) {
@@ -339,7 +339,7 @@ static int do_tune_mww(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 	else
 		addr = base_address + 0x90000000;
 	
-	printf("write starting at %08lx\n", addr);
+	debug("write starting at %08lx\n", addr);
 
 	/* Get the value to write.  */
 	writeval = 0x0;
@@ -356,7 +356,7 @@ static int do_tune_mww(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 		sum1 += (ushort )writeval;
 		addr += size;
 	}
-	printf("checksum: %08lx\n", sum1);
+	debug("checksum: %08lx\n", sum1);
 	return 0;
 }
 
@@ -376,7 +376,7 @@ static int do_tune_mrr(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 		addr = base_address;
 	else
 		addr = base_address + 0x90000000;
-	printf("read starting at %08lx\n", addr);
+	debug("read starting at %08lx\n", addr);
 
 	/* Get the value to write.  */
 	writeval = 0x0;
@@ -394,7 +394,7 @@ static int do_tune_mrr(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 		sum2 += *((ushort  *)addr);
 		addr += size;
 	}
-	printf("computed: %08lx, readback: %08lx\n", sum1, sum2);
+	debug("computed: %08lx, readback: %08lx\n", sum1, sum2);
 	return 0;
 }
 
@@ -444,13 +444,13 @@ static int do_tune_mtest(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv
 		}
 
 		if (iteration_limit && iterations > iteration_limit) {
-			printf("Tested %d iteration(s) with %lu errors.\n",
+			debug("Tested %d iteration(s) with %lu errors.\n",
 				iterations-1, errs);
 			return errs != 0;
 		}
 		++iterations;
 
-		printf("\rPattern %08lX  Writing..."
+		debug("\rPattern %08lX  Writing..."
 			"%12s"
 			"\b\b\b\b\b\b\b\b\b\b",
 			pattern, "");
@@ -460,12 +460,12 @@ static int do_tune_mtest(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv
 			val  += incr;
 		}
 
-		puts("Reading...");
+		debug("Reading...");
 
 		for (addr=start,val=pattern; addr<end; addr++) {
 			readback = *addr;
 			if (readback != val) {
-				printf ("\nMem error @ 0x%08X: "
+				debug ("\nMem error @ 0x%08X: "
 					"found %08lX, expected %08lX\n",
 					(uint)(uintptr_t)addr, readback, val);
 				errs++;
@@ -614,7 +614,7 @@ static int do_tune_wcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	 */
 	while (reg32_read(MMDC_P0_BASE_ADDR + MPWLGCR_OFFSET) & 0x00000001)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/*
 	 * 8. check for any errors: check both PHYs for x64 configuration,
@@ -654,6 +654,7 @@ static int do_tune_wcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	/* re-enable to auto refresh and zq cal */
 	reg32_write((MMDC_P0_BASE_ADDR + MDREF_OFFSET), temp1);
 	reg32_write((MMDC_P0_BASE_ADDR + MPZQHWCTRL_OFFSET), temp2);
+#ifdef DEBUG
 	debug("MMDC_MPWLDECTRL0 after write level cal: 0x%08X\n",
 		reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET));
 	debug("MMDC_MPWLDECTRL1 after write level cal: 0x%08X\n",
@@ -662,6 +663,13 @@ static int do_tune_wcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 		reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET));
 	debug("MMDC_MPWLDECTRL1 after write level cal: 0x%08X\n",
 		reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET));
+#else
+	/* We must force a readback of these values, to get them to stick */
+	reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL0_OFFSET);
+	reg32_read(MMDC_P0_BASE_ADDR + MPWLDECTRL1_OFFSET);
+	reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL0_OFFSET);
+	reg32_read(MMDC_P1_BASE_ADDR + MPWLDECTRL1_OFFSET);
+#endif
 	/* enable DDR logic power down timer: */
 	reg32_write((MMDC_P0_BASE_ADDR + MDPDC_OFFSET),
 	reg32_read((MMDC_P0_BASE_ADDR + MDPDC_OFFSET)) | 0x00005500);
@@ -725,7 +733,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 			& 0x80000000) >> 31;
 	cs1_enable_initial = (reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET)
 			& 0x40000000) >> 30;
-	debug("init cs0: %d cs1: %d\n", cs0_enable_initial, cs1_enable_initial);
+	//debug("init cs0: %d cs1: %d\n", cs0_enable_initial, cs1_enable_initial);
 	/* disable DDR logic power down timer: */
 	reg32_write((MMDC_P0_BASE_ADDR + MDPDC_OFFSET),
 	reg32_read((MMDC_P0_BASE_ADDR + MDPDC_OFFSET)) & 0xffff00ff);
@@ -774,7 +782,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	/* poll to make sure the con_ack bit was asserted */
 	while (!(reg32_read((MMDC_P0_BASE_ADDR + MDSCR_OFFSET)) & 0x00004000))
 		if (withprint)
-			printf(".");
+			debug(".");
 	/*
 	 * Check MDMISC register CALIB_PER_CS to see which CS calibration
 	 * is targeted to (under normal cases, it should be cleared
@@ -798,7 +806,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 			& 0x80000000) >> 31;
 	cs1_enable = (reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET)
 			& 0x40000000) >> 30;
-	debug("cal cs0: %d cs1: %d\n", cs0_enable, cs1_enable);
+	//debug("cal cs0: %d cs1: %d\n", cs0_enable, cs1_enable);
 	/* check to see what is the data bus size: */
 	data_bus_size = (reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET)
 			& 0x30000) >> 16;
@@ -826,7 +834,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	reg32setbit((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET), 0);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET)) & 0x00000001)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/* Set the RD_DL_ABS_OFFSET# bits to their default values
 	 * (will be calibrated later in the read delay-line calibration).
@@ -856,14 +864,14 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/* Read data FIFOs reset2 */
 	reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
 	reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/*
 	 * Start the automatic read DQS gating calibration process by
@@ -885,7 +893,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET))
 			& 0x10000000) {
 		if( withprint )
-			printf( "." );
+			debug( "." );
 	}
 
 	/*
@@ -947,14 +955,14 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 		| 0x80000000);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000)
 		if (withprint)
-			printf(".");
+			debug(".");
 	
 	/* Read data FIFOs reset2 */
 	reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
 	reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000)
 		if(withprint)
-			printf(".");
+			debug(".");
 	
 	/*
 	 * 4. Issue the Precharge-All command to the DDR device for both
@@ -965,12 +973,12 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 		/* CS0 */
 		reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x04008050);
 	while (!(reg32_read(MMDC_P0_BASE_ADDR + MDSCR_OFFSET) & 0x4000))
-		printf( "x" );
+		debug( "x" );
 	if (cs1_enable == 1)
 		/* CS1 */
 		reg32_write((MMDC_P0_BASE_ADDR + MDSCR_OFFSET), 0x04008058);
 	while (!(reg32_read(MMDC_P0_BASE_ADDR + MDSCR_OFFSET) & 0x4000))
-		printf( "x" );
+		debug( "x" );
 
 	/* *********** 5. 6. 7. set the pre-defined word ************ */
 	reg32_write((MMDC_P0_BASE_ADDR + MPPDCMPR1_OFFSET), PDDWord);
@@ -982,7 +990,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	reg32setbit((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET), 0);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET)) & 0x00000001) {
 		if( withprint )
-			printf( "." );
+			debug( "." );
 	}
 
 	/* 8. set initial delays to center up dq in clock */
@@ -1009,7 +1017,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPRDDLHWCTL_OFFSET))
 			& 0x00000010) {
 		if( withprint )
-			printf( "." );
+			debug( "." );
 	}
 
 	/* check both PHYs for x64 configuration, if x32, check only PHY0 */
@@ -1046,14 +1054,14 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/* read data FIFOs reset2 */
 	reg32_write((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET),
 	reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/*
 	 * 4. Issue the Precharge-All command to the DDR device for both
@@ -1077,7 +1085,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	reg32setbit((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET), 0);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPSWDAR_OFFSET)) & 0x00000001)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/*
 	 * 8. Set the WR_DL_ABS_OFFSET# bits to their default values.
@@ -1113,7 +1121,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPWRDLHWCTL_OFFSET))
 			& 0x00000010)
 		if(withprint)
-			printf(".");
+			debug(".");
 	/* Check both PHYs for x64 configuration, if x32, check only PHY0 */
 	if (data_bus_size == 0x2) {
 		if ((reg32_read(MMDC_P0_BASE_ADDR + MPWRDLHWCTL_OFFSET)
@@ -1141,14 +1149,14 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
 	while (reg32_read((MMDC_P0_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/* read data FIFOs reset2 */
 	reg32_write((MMDC_P1_BASE_ADDR + MPDGCTRL0_OFFSET),
 	reg32_read((MMDC_P1_BASE_ADDR + MPDGCTRL0_OFFSET)) | 0x80000000);
 	while (reg32_read((MMDC_P1_BASE_ADDR + MPDGCTRL0_OFFSET)) & 0x80000000)
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/* Enable DDR logic power down timer: */
 	reg32_write((MMDC_P0_BASE_ADDR + MDPDC_OFFSET),
@@ -1190,7 +1198,7 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	/* Poll to make sure the con_ack bit is clear */
 	while ((reg32_read(MMDC_P0_BASE_ADDR + MDSCR_OFFSET) & 0x00004000))
 		if (withprint)
-			printf(".");
+			debug(".");
 
 	/*
 	 * Print out the registers that were updated as a result
@@ -1242,17 +1250,17 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 /* init ddr3, do calibrations */
 int dram_init(void)
 {
-	u_char	chip;
+	uint8_t spd[256];
+	uint8_t	chip;
 	uint	addr, alen, length;
 	int	j, nbytes, linebytes;
-	u_char spd[256];
 	struct ddr_spd ddrSPD;
 	unsigned short cl_support = 0;
 	unsigned int cfgval = 0;
 	int errorcount = 0;
 	int  i;
 
-	puts("\nSPD dump:\n");
+	debug("\nSPD dump:\n");
 
 	chip   = 0x50;
 	addr   = 0x0;
@@ -1272,72 +1280,83 @@ int dram_init(void)
 		linebytes = (nbytes > DISP_LINE_LEN) ? DISP_LINE_LEN : nbytes;
 
 		if (i2c_read(chip, addr, alen, linebuf, linebytes) != 0) {
-			puts("Error reading SPD on DDR3.\n");
+			printf("Error reading SPD on DDR3.\n");
 			dram_fatal();
-		} else {
-			printf("%04x:", addr);
+		}
+#ifdef DEBUG
+		else {
+			debug("%04x:", addr);
 			cp = linebuf;
 			for (j=0; j<linebytes; j++) {
 				spd[i++] = *cp;
-				printf(" %02x", *cp++);
+				debug(" %02x", *cp++);
 				addr++;
 			}
-			puts("    ");
+			debug("    ");
 			cp = linebuf;
 			for (j=0; j<linebytes; j++) {
 				if ((*cp < 0x20) || (*cp > 0x7e))
-					puts(".");
+					debug(".");
 				else
-					printf("%c", *cp);
+					debug("%c", *cp);
 				cp++;
 			}
-			putc('\n');
+			debug("\n");
 		}
+#else
+		cp = linebuf;
+		for (j=0; j<linebytes; j++) {
+			spd[i++] = *cp++;
+			addr++;
+		}
+#endif
 		nbytes -= linebytes;
 	} while (nbytes > 0);
 
-	puts("\nRaw DDR3 characteristics based on SPD:\n");
+	debug("\nRaw DDR3 characteristics based on SPD:\n");
 	if ((spd[SPD_DRAM_DEVICE_TYPE] != 0xB) || (spd[SPD_MODULE_TYPE] != 3)) {
-		puts("Unrecognized DIMM type installed\n");
+		printf("Unrecognized DIMM type installed: %d / %d\n",
+				spd[SPD_DRAM_DEVICE_TYPE],
+				spd[SPD_MODULE_TYPE]);
 		dram_fatal();
 	}
 
 	if ((spd[SPD_SDRAM_DENSITY_AND_BANKS] & 0x30) != 0)
-		puts("  Warning: memory has an unsupported bank size\n");
+		debug("  Warning: memory has an unsupported bank size\n");
 	else
-		puts("  8 banks\n");
+		debug("  8 banks\n");
 	ddrSPD.banks = 8;
 
 	ddrSPD.density = 256 * (1 << (spd[SPD_SDRAM_DENSITY_AND_BANKS] & 0xF));
-	printf("  Individual chip density is %d Mib\n", ddrSPD.density);
+	debug("  Individual chip density is %d Mib\n", ddrSPD.density);
 
 	ddrSPD.rows = ((spd[SPD_SDRAM_ADDRESSING] & 0x38) >> 3) + 12;
 	ddrSPD.cols = (spd[SPD_SDRAM_ADDRESSING] & 0x7) + 9;
-	printf("  Rows: %d, Cols: %d\n", ddrSPD.rows, ddrSPD.cols);
+	debug("  Rows: %d, Cols: %d\n", ddrSPD.rows, ddrSPD.cols);
 
 	if (spd[SPD_NOMINAL_VOLTAGE] & 0x1) {
-		puts("Module not operable at 1.5V, fatal error.\n");
+		printf("Module not operable at 1.5V, fatal error.\n");
 		dram_fatal();
 	} else
-		puts("  Supports 1.5V operation.\n");
+		debug("  Supports 1.5V operation.\n");
 
 	ddrSPD.rank = ((spd[SPD_ORGANIZATION] >> 3) & 0x7) + 1;
-	printf("  Module has %d rank(s)\n", ddrSPD.rank);
+	debug("  Module has %d rank(s)\n", ddrSPD.rank);
 
 	ddrSPD.devwidth = (1 << (spd[SPD_ORGANIZATION] & 0x7)) * 4;
-	printf("  Chips have a width of %d bits\n", ddrSPD.devwidth);
+	debug("  Chips have a width of %d bits\n", ddrSPD.devwidth);
 
 	if (spd[SPD_BUS_WIDTH] != 0x3) {
-		puts("Unsupported device width, fatal.\n");
+		printf("Unsupported device width, fatal.\n");
 		dram_fatal();
 	} else
-		puts("  Module width is 64 bits, no ECC\n");
+		debug("  Module width is 64 bits, no ECC\n");
 
 	ddrSPD.capacity = (64 / ddrSPD.devwidth) * ddrSPD.rank * ddrSPD.density;
-	printf("  Module capacity is %d GiB\n", ddrSPD.capacity / 8192);
+	debug("  Module capacity is %d GiB\n", ddrSPD.capacity / 8192);
 
 	if ((spd[SPD_MTB_DIVIDEND] != 1) || (spd[SPD_MTB_DIVISOR] != 8)) {
-		puts( "Module has non-standard MTB for timing calculation. "
+		printf( "Module has non-standard MTB for timing calculation. "
 			"Doesn't mean the module is bad, just means this "
 			"bootloader can't derive timing information based "
 			"on the units coded in the SPD. This is, "
@@ -1367,19 +1386,19 @@ int dram_init(void)
 		break;
 	default:
 		if (spd[SPD_TCKMIN] <= 0xF) {
-			puts("**undecodable but sufficiently fast "
+			debug("**undecodable but sufficiently fast "
 					"clock rate detected\n");
 			ddrSPD.clockrate = 533;
 		} else {
-			puts("**undecodable but too slow "
+			debug("**undecodable but too slow "
 					"clock rate detected\n");
 			ddrSPD.clockrate = 400;
 		}
 		break;
 	}
-	printf("  DDR3-%d speed rating detected\n", ddrSPD.clockrate * 2);
+	debug("  DDR3-%d speed rating detected\n", ddrSPD.clockrate * 2);
 	if (ddrSPD.clockrate < 533) {
-		puts("memory is too slow.\n");
+		printf("memory is too slow.\n");
 		dram_fatal();
 	}
 
@@ -1394,51 +1413,51 @@ int dram_init(void)
 
 	while ( !((1 << (ddrSPD.caslatency - 4)) & cl_support) ) {
 		if (ddrSPD.caslatency > 18) {
-			puts("no module-supported CAS latencies found\n");
+			printf("no module-supported CAS latencies found\n");
 			dram_fatal();
 		}
 		ddrSPD.caslatency++;
 	}
 
 	if (ddrSPD.caslatency > 11) {
-		puts("cas latency larger than supported by i.MX6\n");
+		printf("cas latency larger than supported by i.MX6\n");
 		dram_fatal();
 	}
 	if (ddrSPD.caslatency < 3) {
-		puts("cas latency shorter than supported by i.MX6\n");
+		printf("cas latency shorter than supported by i.MX6\n");
 		dram_fatal();
 	}
-	puts("Derived optimal timing parameters, in 533MHz cycles:\n");
-	printf("  CAS latency: %d\n", ddrSPD.caslatency);
+	debug("Derived optimal timing parameters, in 533MHz cycles:\n");
+	debug("  CAS latency: %d\n", ddrSPD.caslatency);
 
 	ddrSPD.tWRmin = mtb_to_cycles((unsigned int) spd[SPD_TWRMIN]);
 	if (ddrSPD.tWRmin > 8) {
-		puts( "  optimal tWRmin greater than supported by i.MX6, "
+		debug( "  optimal tWRmin greater than supported by i.MX6, "
 				"value saturated.\n");
 		ddrSPD.tWRmin = 8;
 	}
-	printf( "  tWRmin: %d\n", ddrSPD.tWRmin );
+	debug( "  tWRmin: %d\n", ddrSPD.tWRmin );
 
 	ddrSPD.tRCDmin = mtb_to_cycles((unsigned int) spd[SPD_TRCDMIN]);
 	if (ddrSPD.tRCDmin > 8) {
-		puts("  optimal tRCDmin greater than supported by i.MX6, "
+		debug("  optimal tRCDmin greater than supported by i.MX6, "
 				"value saturated.\n");
 		ddrSPD.tRCDmin = 8;
 	}
-	printf("  tRCDmin: %d\n", ddrSPD.tRCDmin);
+	debug("  tRCDmin: %d\n", ddrSPD.tRCDmin);
 
 	ddrSPD.tRRDmin = mtb_to_cycles((unsigned int) spd[SPD_TRRDMIN]);
 	if (ddrSPD.tRRDmin > 0x8) {
-		puts("  optimal tRRDmin greater than supported by i.MX6, "
+		debug("  optimal tRRDmin greater than supported by i.MX6, "
 				"value saturated.\n" );
 		ddrSPD.tRRDmin = 0x8;
 	}
-	printf("  tRRDmin: %d\n", ddrSPD.tRRDmin);
+	debug("  tRRDmin: %d\n", ddrSPD.tRRDmin);
 
 	ddrSPD.tRPmin = mtb_to_cycles((unsigned int) spd[SPD_TRPMIN]);
-	printf("  tRPmin: %d\n", ddrSPD.tRPmin);
+	debug("  tRPmin: %d\n", ddrSPD.tRPmin);
 	if (ddrSPD.tRPmin > 8) {
-		puts("  optimal tRPmin greater than supported by i.MX6, "
+		debug("  optimal tRPmin greater than supported by i.MX6, "
 				"value saturated.\n");
 		ddrSPD.tRPmin = 8;
 	}
@@ -1446,73 +1465,73 @@ int dram_init(void)
 	ddrSPD.tRAS = mtb_to_cycles((unsigned int) spd[SPD_TRAS_LSB] | 
 			(((unsigned int) spd[SPD_TRAS_TRC_MSB] & 0xF) << 8));
 	if (ddrSPD.tRAS > 0x20) {
-		puts("  optimal tRAS greater than supported by i.MX6, "
+		debug("  optimal tRAS greater than supported by i.MX6, "
 				"value saturated.\n");
 		ddrSPD.tRAS = 0x20;
 	}
-	printf("  tRAS: %d\n", ddrSPD.tRAS);
+	debug("  tRAS: %d\n", ddrSPD.tRAS);
 
 	ddrSPD.tRC = mtb_to_cycles((unsigned int) spd[SPD_TRC_LSB] |
 			(((unsigned int) spd[SPD_TRAS_TRC_MSB] & 0xF0) << 4));
 	if (ddrSPD.tRC > 0x20) {
-		puts("  optimal tRC greater than supported by i.MX6, "
+		debug("  optimal tRC greater than supported by i.MX6, "
 				"value saturated.\n");
 		ddrSPD.tRC = 0x20;
 	}
-	printf("  tRC: %d\n", ddrSPD.tRC);
+	debug("  tRC: %d\n", ddrSPD.tRC);
 
 	ddrSPD.tRFCmin = mtb_to_cycles((unsigned int) spd[SPD_TRFC_LSB] | 
 				((unsigned int) spd[SPD_TRFC_MSB]) << 8 );
 	if (ddrSPD.tRFCmin > 0x100) {
 		ddrSPD.tRFCmin = 0x100;
-		puts("  Info: derived tRFCmin exceeded max allowed value "
+		debug("  Info: derived tRFCmin exceeded max allowed value "
 				"by i.MX6\n");
 	}
-	printf("  tRFCmin: %d\n", ddrSPD.tRFCmin);
+	debug("  tRFCmin: %d\n", ddrSPD.tRFCmin);
 
 	ddrSPD.tWTRmin = mtb_to_cycles((unsigned int) spd[SPD_WTRMIN]);
 	if (ddrSPD.tWTRmin > 0x8) {
-		puts("  optimal tWTRmin greater than supported by i.MX6, "
+		debug("  optimal tWTRmin greater than supported by i.MX6, "
 				"value saturated.\n");
 		ddrSPD.tWTRmin = 0x8;
 	}
-	printf("  tWTRmin: %d\n", ddrSPD.tWTRmin);
+	debug("  tWTRmin: %d\n", ddrSPD.tWTRmin);
 
 	ddrSPD.tRTPmin = mtb_to_cycles((unsigned int) spd[SPD_RTPMIN]);
 	if (ddrSPD.tRTPmin > 0x8) {
-		puts("  optimal tRTPmin greater than supported by i.MX6, "
+		debug("  optimal tRTPmin greater than supported by i.MX6, "
 				"value saturated.\n");
 		ddrSPD.tRTPmin = 0x8;
 	}
-	printf("  tRTPmin: %d\n", ddrSPD.tRTPmin);
+	debug("  tRTPmin: %d\n", ddrSPD.tRTPmin);
 
 	ddrSPD.tFAW = mtb_to_cycles((unsigned int) spd[SPD_TFAW_LSB] |
 				((unsigned int) spd[SPD_TFAW_MSB]) << 8);
 	if (ddrSPD.tFAW > 0x20) {
 		ddrSPD.tFAW = 0x20;
-		puts("  Info: derived tFAW exceeded max allowed value "
+		debug("  Info: derived tFAW exceeded max allowed value "
 				"by i.MX6\n");
 	}
-	printf("  tFAW: %d\n", ddrSPD.tFAW);
+	debug("  tFAW: %d\n", ddrSPD.tFAW);
 
 	if (spd[SPD_THERMAL] & 0x80)
-		puts("Info: thermal sensor exists on this module\n");
+		debug("Info: thermal sensor exists on this module\n");
 	else
-		puts("Info: no thermal sensor on-module\n");
+		debug("Info: no thermal sensor on-module\n");
 
 	ddrSPD.vendorID = spd[SPD_VENDOR_ID_LSB] 
 			| (spd[SPD_VENDOR_ID_MSB] << 8);
-	printf("Vendor ID: 0x%04x\n", ddrSPD.vendorID);
+	debug("Vendor ID: 0x%04x\n", ddrSPD.vendorID);
 
 	for (i = 0; i < 18; i++)
 		ddrSPD.name[i] = spd[SPD_NAME + i];
 	ddrSPD.name[i] = '\0';
-	printf("Module name: %s\n", ddrSPD.name);
+	debug("Module name: %s\n", ddrSPD.name);
 
-	puts("\nReprogramming DDR timings...\n" );
+	debug("\nReprogramming DDR timings...\n" );
 
 	cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDCTL_OFFSET);
-	printf("Original CTL: %08x\n", cfgval);
+	debug("Original CTL: %08x\n", cfgval);
 	cfgval = 0x80000000;
 	if(ddrSPD.rank == 2) 
 		cfgval |= 0x40000000;
@@ -1520,26 +1539,26 @@ int dram_init(void)
 	cfgval |= (ddrSPD.cols - 9) << 20;
 	cfgval |= 1 << 19; /* burst length = 8 */
 	cfgval |= 2 << 16; /* data size is 64 bits */
-	printf("Optimal CTL: %08x\n", cfgval);
+	debug("Optimal CTL: %08x\n", cfgval);
 	reg32_write(MMDC_P0_BASE_ADDR + MDCTL_OFFSET, cfgval);
 
 	cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDASP_OFFSET);
-	printf("Original ASP: %08x\n", cfgval);
+	debug("Original ASP: %08x\n", cfgval);
 	cfgval = (ddrSPD.capacity / (256 * ddrSPD.rank)) - 1;
-	printf("Optimal ASP: %08x\n", cfgval);
+	debug("Optimal ASP: %08x\n", cfgval);
 	reg32_write(MMDC_P0_BASE_ADDR + MDASP_OFFSET, cfgval );
 
 	cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDCFG0_OFFSET);
-	printf("Original CFG0: %08x\n", cfgval);
+	debug("Original CFG0: %08x\n", cfgval);
 	cfgval &= 0x00FFFE00;
 	cfgval |= ((ddrSPD.tRFCmin - 1) << 24);
 	cfgval |= ((ddrSPD.tFAW - 1) & 0x1F << 4);
 	cfgval |= ddrSPD.caslatency - 3;
-	printf("Optimal CFG0: %08x\n", cfgval);
+	debug("Optimal CFG0: %08x\n", cfgval);
 	reg32_write(MMDC_P0_BASE_ADDR + MDCFG0_OFFSET,  cfgval );
 
 	cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDCFG1_OFFSET);
-	printf("Original CFG1: %08x\n", cfgval);
+	debug("Original CFG1: %08x\n", cfgval);
 	cfgval &= 0x000081FF;
 	cfgval |= ((ddrSPD.tRCDmin - 1) << 29);
 	cfgval |= ((ddrSPD.tRPmin - 1) << 26);
@@ -1547,7 +1566,7 @@ int dram_init(void)
 	cfgval |= ((ddrSPD.tRAS -1) << 16);
 	cfgval |= ((ddrSPD.tWRmin -1) << 9);
 	if ((cfgval & 0x7) + 2 < ddrSPD.caslatency) {
-		printf( "Original CFG1 tCWL shorter "
+		debug( "Original CFG1 tCWL shorter "
 				"than supported cas latency, fixing...\n");
 		cfgval &= 0xFFFFFFF8;
 		if( ddrSPD.caslatency > 7 )
@@ -1555,33 +1574,33 @@ int dram_init(void)
 		else
 			cfgval |= (ddrSPD.caslatency - 2);
 	}
-	printf("Optimal CFG1: %08x\n", cfgval);
+	debug("Optimal CFG1: %08x\n", cfgval);
 	reg32_write(MMDC_P0_BASE_ADDR + MDCFG1_OFFSET,  cfgval);
 
 	cfgval = reg32_read(MMDC_P0_BASE_ADDR + MDCFG2_OFFSET);
-	printf("Original CFG2: %08x\n", cfgval);
+	debug("Original CFG2: %08x\n", cfgval);
 	cfgval &= 0xFFFF0000;
 	cfgval |= ((ddrSPD.tRTPmin - 1) << 6);
 	cfgval |= ((ddrSPD.tWTRmin - 1) << 3);
 	cfgval |= ((ddrSPD.tRRDmin - 1) << 0);
-	printf("Optimal CFG2: %08x\n", cfgval);
+	debug("Optimal CFG2: %08x\n", cfgval);
 	reg32_write(MMDC_P0_BASE_ADDR + MDCFG2_OFFSET, cfgval);
 
 	/*
 	 * Write and read back some dummy data to demonstrate 
 	 * that ddr3 is not broken
 	 */
-	puts("\nReference read/write test prior to tuning\n");
+	debug("\nReference read/write test prior to tuning\n");
 	do_tune_mww(NULL, 0, 1, NULL);
 	do_tune_mrr(NULL, 0, 1, NULL);
 
 	/* do write (fly-by) calibration */
-	puts("\nFly-by calibration\n");
+	debug("\nFly-by calibration\n");
 	errorcount = do_tune_wcal(NULL, 0, 1, NULL);
 	udelay(100000);
 	/* let it settle in...seems it's necessary */
 	if (errorcount != 0) {
-		puts("Fly-by calibration seems to have failed. "
+		debug("Fly-by calibration seems to have failed. "
 			"Guessing values for wcal based on rank...\n");
 		if (ddrSPD.rank == 1) {
 			/* Parameters for boards built at King Credie */
@@ -1607,11 +1626,11 @@ int dram_init(void)
 	}
 
 	/* Tune DQS delays. For some reason, has to be run twice. */
-	puts("\nDQS delay calibration\n");
+	debug("\nDQS delay calibration\n");
 	do_tune_delays(NULL, 0, 1, NULL);
 	errorcount = do_tune_delays(NULL, 0, 1, NULL);
 	if (errorcount != 0) {
-		puts("DQS delay calibration has failed. Guessing values "
+		debug("DQS delay calibration has failed. Guessing values "
 				"for delay cal based on rank...\n");
 		if (ddrSPD.rank == 1) {
 			/* Parameters for boards built at King Credie */
@@ -1640,15 +1659,15 @@ int dram_init(void)
 	 * Confirm that the memory is working by read/write demo.
 	 * Confirmation currently read out on terminal.
 	 */
-	puts("\nReference read/write test post-tuning\n");
+	debug("\nReference read/write test post-tuning\n");
 	do_tune_mww(NULL, 0, 1, NULL);
 	do_tune_mrr(NULL, 0, 1, NULL);
 
-	printf("ddrSPD.capacity: %08x\n", ddrSPD.capacity);
-	printf("Ramsize according to SPD: %08x\n",
+	debug("ddrSPD.capacity: %08x\n", ddrSPD.capacity);
+	debug("Ramsize according to SPD: %08x\n",
 			((ddrSPD.capacity / 8) - 256) * 1024 * 1024);
 	gd->ram_size = ((ddrSPD.capacity / 8) - 256) * 1024 * 1024;
-	printf("Set gd->ram_size to %08lx\n", (long)gd->ram_size);
+	debug("Set gd->ram_size to %08lx\n", (long)gd->ram_size);
 
 	return 0;
 }
