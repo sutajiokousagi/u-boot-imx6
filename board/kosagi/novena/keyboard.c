@@ -52,6 +52,6 @@ static int do_kbd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 U_BOOT_CMD(
         kbd, 1, 1, do_kbd,
-        "Tests for keypresses, sets 'keybd' environment variable",
+        "Tests for keypresses, sets 'readkeys' environment variable",
         "Returns 0 (true) to shell if key is pressed."
 );
