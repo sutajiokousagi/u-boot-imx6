@@ -194,6 +194,113 @@ fail:
 	return 1;
 }
 
+struct uuid {
+	uint32_t  time_low;
+	uint16_t  time_mid;
+	uint16_t  time_hi_and_version;
+	uint8_t   clock_seq_hi_and_reserved;
+	uint8_t   clock_seq_low;
+	uint8_t   node[6];
+} __attribute__((__packed__));
+
+int do_ext_uuid(cmd_tbl_t *cmdtp, int flag, int argc,
+						char *const argv[])
+{
+	int i;
+	char *ep;
+	int dev;
+	unsigned long part = 1;
+	ulong part_length;
+	disk_partition_t info;
+	struct ext_filesystem *fs;
+	const char *envname;
+	struct uuid *uuid;
+
+	printf("argc: %d\n", argc);
+	switch (argc) {
+	case 3:
+		envname = "bootuuid";
+		break;
+	case 4:
+		envname = argv[3];
+		break;
+	default:
+		printf("Usage error\n");
+		return cmd_usage(cmdtp);
+	}
+
+	dev = (int)simple_strtoul(argv[2], &ep, 16);
+	ext4_dev_desc = get_dev(argv[1], dev);
+	if (ext4_dev_desc == NULL) {
+		printf("** Block device %s %d not supported\n", argv[1], dev);
+		return 1;
+	}
+	if (init_fs(ext4_dev_desc))
+		return 1;
+
+	fs = get_fs();
+	if (*ep) {
+		if (*ep != ':') {
+			puts("** Invalid boot device, use `dev[:part]' **\n");
+			goto fail;
+		}
+		part = simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (part != 0) {
+		if (get_partition_info(fs->dev_desc, part, &info)) {
+			printf("** Bad partition %lu **\n", part);
+			goto fail;
+		}
+
+		if (strncmp((char *)info.type, BOOT_PART_TYPE,
+			    strlen(BOOT_PART_TYPE)) != 0) {
+			printf("** Invalid partition type \"%s\""
+			       " (expect \"" BOOT_PART_TYPE "\")\n", info.type);
+			goto fail;
+		}
+	}
+
+	part_length = ext4fs_set_blk_dev(fs->dev_desc, part);
+	if (part_length == 0) {
+		printf("**Bad partition - %s %d:%lu **\n", argv[1], dev, part);
+		ext4fs_close();
+		goto fail;
+	}
+
+	if (!ext4fs_mount(part_length)) {
+		printf("** Bad ext2 partition or disk - %s %d:%lu **\n",
+		       argv[1], dev, part);
+		ext4fs_close();
+		goto fail;
+	}
+
+	printf("UUID:");
+	uuid = (struct uuid *)(ext4fs_root->sblock.unique_id);
+	char uuid_str[40];
+	sprintf(uuid_str,
+		"%8.8x-%4.4x-%4.4x-%2.2x%2.2x-%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x",
+		be32_to_cpu(uuid->time_low),
+		be16_to_cpu(uuid->time_mid),
+		be16_to_cpu(uuid->time_hi_and_version),
+		uuid->clock_seq_hi_and_reserved,
+		uuid->clock_seq_low,
+		uuid->node[0], uuid->node[1], uuid->node[2],
+		uuid->node[3], uuid->node[4], uuid->node[5]);
+	printf("uuid str : %s\n", uuid_str);
+	printf("Should be: 9d3d0bc3-641a-47b0-85df-717b8074875c\n");
+
+	setenv(envname, uuid_str);
+
+	deinit_fs(fs->dev_desc);
+	/* Loading ok, update default load address */
+
+	return 0;
+fail:
+	deinit_fs(fs->dev_desc);
+	return 1;
+}
+
 int do_ext_ls(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	const char *filename = "/";

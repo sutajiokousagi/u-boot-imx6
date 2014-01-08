@@ -59,6 +59,14 @@ int do_ext2load (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return 0;
 }
 
+int do_ext2uuid (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	if (do_ext_uuid(cmdtp, flag, argc, argv))
+		return -1;
+
+	return 0;
+}
+
 U_BOOT_CMD(
 	ext2ls,	4,	1,	do_ext2ls,
 	"list files in a directory (default /)",
@@ -72,4 +80,12 @@ U_BOOT_CMD(
 	"<interface> <dev[:part]> [addr] [filename] [bytes]\n"
 	"    - load binary file 'filename' from 'dev' on 'interface'\n"
 	"      to address 'addr' from ext2 filesystem"
+);
+
+U_BOOT_CMD(
+	ext2uuid,	4,	0,	do_ext2uuid,
+	"set the \"bootuuid\" variable to the uuid of an ext filesystem",
+	"<interface> <dev[:part]> [variable]\n"
+	"    - set the environment variable 'variable' (default to\n"
+	"      'bootuuid') to the uuid of the specified ext2/3/4 filesystem"
 );
