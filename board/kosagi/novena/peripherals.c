@@ -13,19 +13,20 @@
  * http://www.kosagi.com/w/index.php?title=Novena/EEPROM
  */
 struct novena_eeprom_data {
-        uint8_t         signature[6];   /* 'Novena' */
-        uint8_t         version;        /* 1 */
-        uint8_t         reserved1;
-        uint32_t        serial;
-        uint8_t         mac[6];
-        uint16_t        features;
+	uint8_t		signature[6];	/* 'Novena' */
+	uint8_t		version;	/* 1 */
+	uint8_t		reserved1;
+	uint32_t	serial;
+	uint8_t		mac[6];
+	uint16_t	features;
 } __attribute__((__packed__));
 
 struct feature {
-        uint32_t        flags;
-        char            *name;
-        char            *descr;
-	void		(*func)(struct novena_eeprom_data *);
+	uint32_t	flags;
+	char		*name;
+	char		*descr;
+	void		(*on)(struct novena_eeprom_data *);
+	void		(*off)(struct novena_eeprom_data *);
 };
 
 static void setup_es8328(struct novena_eeprom_data *);
@@ -36,48 +37,63 @@ static void setup_pcie(struct novena_eeprom_data *);
 static void setup_gbit(struct novena_eeprom_data *);
 static void setup_hdmi(struct novena_eeprom_data *);
 
+static void turnoff_es8328(struct novena_eeprom_data *);
+static void turnoff_senoko(struct novena_eeprom_data *);
+static void turnoff_retina(struct novena_eeprom_data *);
+static void turnoff_pixelqi(struct novena_eeprom_data *);
+static void turnoff_pcie(struct novena_eeprom_data *);
+static void turnoff_gbit(struct novena_eeprom_data *);
+static void turnoff_hdmi(struct novena_eeprom_data *);
+
 struct feature features[] = {
 	{
 		.name  = "es8328",
 		.flags = 0x01,
 		.descr = "ES8328 audio codec",
-		.func  = setup_es8328,
+		.on    = setup_es8328,
+		.off   = turnoff_es8328,
 	},
 	{
 		.name  = "senoko",
 		.flags = 0x02,
 		.descr = "Power Management Board",
-		.func  = setup_senoko,
+		.on    = setup_senoko,
+		.off   = turnoff_senoko,
 	},
 	{
 		.name  = "retina",
 		.flags = 0x04,
 		.descr = "Retina-class dual-LVDS display",
-		.func  = setup_retina,
+		.on    = setup_retina,
+		.off   = turnoff_retina,
 	},
 	{
 		.name  = "pixelqi",
 		.flags = 0x08,
 		.descr = "PixelQi LVDS display",
-		.func  = setup_pixelqi,
+		.on    = setup_pixelqi,
+		.off   = turnoff_pixelqi,
 	},
 	{
 		.name  = "pcie",
 		.flags = 0x10,
 		.descr = "PCI Express support",
-		.func  = setup_pcie,
+		.on    = setup_pcie,
+		.off   = turnoff_pcie,
 	},
 	{
 		.name  = "gbit",
 		.flags = 0x20,
 		.descr = "Gigabit Ethernet",
-		.func  = setup_gbit,
+		.on    = setup_gbit,
+		.off   = turnoff_gbit,
 	},
 	{
 		.name  = "hdmi",
 		.flags = 0x40,
 		.descr = "HDMI Output",
-		.func  = setup_hdmi,
+		.on    = setup_hdmi,
+		.off   = turnoff_hdmi,
 	},
 	{} /* Sentinal */
 };
@@ -105,29 +121,25 @@ static void setup_es8328(struct novena_eeprom_data *cfg) {
 	};
 	imx_iomux_v3_setup_multiple_pads(audio_pads, ARRAY_SIZE(audio_pads));
 	gpio_direction_output(AUDIO_GPIO, 1);
-	setenv("prep_es8328", "fdt set /soc/aips-bus@02100000/i2c@021a8000/es8328@11 status \"okay\"");
+	setenv("prep_es8328",
+	"fdt set /soc/aips-bus@02100000/i2c@021a8000/es8328@11 status \"okay\"");
 	return;
 }
 
+static void turnoff_es8328(struct novena_eeprom_data *cfg) {
+	setenv("prep_es8328",
+		"fdt rm /soc/aips-bus@02100000/i2c@021a8000/es8328@11");
+}
+
 static void setup_senoko(struct novena_eeprom_data *cfg) {
+#define PMB_RESET_GPIO IMX_GPIO_NR(5, 21)
 	iomux_v3_cfg_t senoko_pads[] = {
-		/* "Reprogram" pin */
-		MX6Q_PAD_CSI0_DATA_EN__GPIO_5_20 | MUX_PAD_CTRL(NO_PAD_CTRL),
 		/* "Reset" pin */
 		MX6Q_PAD_CSI0_VSYNC__GPIO_5_21 | MUX_PAD_CTRL(NO_PAD_CTRL),
-#define PMB_REPROG_GPIO IMX_GPIO_NR(5, 20)
-#define PMB_RESET_GPIO IMX_GPIO_NR(5, 21)
 	};
 	imx_iomux_v3_setup_multiple_pads(senoko_pads, ARRAY_SIZE(senoko_pads));
 
-	/* Reset the board */
-	gpio_direction_output(PMB_RESET_GPIO, 0);
-
-	/* Disable the "reprogram" signal prior to booting board */
-	gpio_direction_output(PMB_REPROG_GPIO, 0);
-
 	/* Bring the board out of reset */
-	udelay(10000);
 	gpio_direction_output(PMB_RESET_GPIO, 1);
 
 	setenv("prep_senoko", "true");
@@ -135,11 +147,16 @@ static void setup_senoko(struct novena_eeprom_data *cfg) {
 	return;
 }
 
+static void turnoff_senoko(struct novena_eeprom_data *cfg) {
+	setenv("prep_senoko",
+		"fdt rm /soc/aips-bus@02100000/i2c@021a0000/bq20z75@b");
+}
+
 static void setup_retina(struct novena_eeprom_data *cfg) {
 	setup_backlight();
 	setenv("prep_retina",
 	"fdt set "
-	"/soc/aips-bus@02100000/i2c@021a8000/stdp4028@73 status \"okay\"; "
+	"/soc/aips-bus@02100000/i2c@021a8000/it6251@73 status \"okay\"; "
 	"fdt set "
 	"/soc/aips-bus@02000000/ldb@020e0008 status \"okay\"; "
 	"fdt set "
@@ -149,9 +166,21 @@ static void setup_retina(struct novena_eeprom_data *cfg) {
 	return;
 }
 
+static void turnoff_retina(struct novena_eeprom_data *cfg) {
+	setenv("prep_retina",
+	"fdt rm /soc/aips-bus@02100000/i2c@021a8000/it6251@73; "
+	"fdt rm /soc/aips-bus@02000000/ldb@020e0008; ");
+	return;
+}
+
 static void setup_pixelqi(struct novena_eeprom_data *cfg) {
 	setup_backlight();
 	/* Remainder not implemented */
+	setenv("prep_pixelqi", "true");
+	return;
+}
+
+static void turnoff_pixelqi(struct novena_eeprom_data *cfg) {
 	setenv("prep_pixelqi", "true");
 	return;
 }
@@ -193,6 +222,10 @@ static void setup_pcie(struct novena_eeprom_data *cfg) {
 	return;
 }
 
+static void turnoff_pcie(struct novena_eeprom_data *cfg) {
+	setenv("prep_pcie", "fdt rm /soc/pcie@0x01000000");
+}
+
 static void setup_gbit(struct novena_eeprom_data *cfg) {
 	int random_mac = 0;
 	if (cfg->mac[0] == 0xff && cfg->mac[1] == 0xff
@@ -216,6 +249,10 @@ static void setup_gbit(struct novena_eeprom_data *cfg) {
 	}
 }
 
+static void turnoff_gbit(struct novena_eeprom_data *cfg) {
+	setenv("prep_gbit", "fdt rm /soc/aips-bus@02100000/ethernet@02188000");
+}
+
 static void setup_hdmi(struct novena_eeprom_data *cfg) {
 	iomux_v3_cfg_t hdmi_pads[] = {
 		/* "Ghost HPD" pin */
@@ -230,6 +267,10 @@ static void setup_hdmi(struct novena_eeprom_data *cfg) {
 	setenv("prep_hdmi",
 		"fdt set /soc/aips-bus@02000000/hdmi@0120000 status \"okay\"");
 	return;
+}
+
+static void turnoff_hdmi(struct novena_eeprom_data *cfg) {
+	setenv("prep_hdmi", "fdt rm /soc/aips-bus@02000000/hdmi@0120000");
 }
 
 int setup_peripherals(void)
@@ -277,8 +318,10 @@ int setup_peripherals(void)
 		if (cfg.features & feature->flags) {
 			printf("    Peripheral: Enabling %s (%s)\n",
 					feature->name, feature->descr);
-			feature->func(&cfg);
+			feature->on(&cfg);
 		}
+		else
+			feature->off(&cfg);
 		feature++;
 	}
 
