@@ -1246,6 +1246,18 @@ static int do_tune_delays(cmd_tbl_t *cmdtp, int flag, int argc, char * const arg
 	return 0;
 }
 
+/* Yank the FPGA "reset" GPIO, which frees the I2C bus */
+static void reset_fpga(void)
+{
+	iomux_v3_cfg_t fpga_reset_pads_6q[] = {
+		MX6Q_PAD_DISP0_DAT13__GPIO_5_7 | MUX_PAD_CTRL(NO_PAD_CTRL),
+	};
+		imx_iomux_v3_setup_multiple_pads(fpga_reset_pads_6q,
+			ARRAY_SIZE(fpga_reset_pads_6q));
+
+	/* Pull FPGA reset line to 0, disabling power */
+	gpio_direction_output(IMX_GPIO_NR(5, 7), 0);
+}
 
 /* init ddr3, do calibrations */
 int dram_init(void)
@@ -1259,6 +1271,8 @@ int dram_init(void)
 	unsigned int cfgval = 0;
 	int errorcount = 0;
 	int  i;
+
+	reset_fpga();
 
 	debug("\nSPD dump:\n");
 
